@@ -54,6 +54,11 @@ class WebServ {
 
 		// juhyelee - run
 		void run(Connection * clt, char * envp[]);
+		void runGET(Connection * clt, char * envp[]);
+		void runPOST(Connection * clt, char * envp[]);
+		void runDELETE(Connection * clt, char * envp[]);
+		static void getFileList(std::vector<std::string> & list, DIR * dir);
+		static void setEnv(char * envp[]);
 };
 
 #endif

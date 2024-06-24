@@ -7,7 +7,8 @@
 
 // juhyelee
 # include "Server.hpp"
-# include "status.hpp"
+# include "enum.hpp"
+# include "Kqueue.hpp"
 
 # define CRLF "\r\n"
 # define BUFFER_SIZE 4096
@@ -19,13 +20,6 @@ enum eValidStatus
 	METHOD,
 
 };
-
-//juhyelee - need for run
-enum eType
-{
-	FILE, AUTOINDEX, CGI
-};
-
 
 class Connection
 {
@@ -46,6 +40,7 @@ class Connection
 
 		//juhyelee - need for run
 		eStatus mStatus;
+		eProcessType mProcType;
 	public:
 		Connection(void);
 		Connection(int socket, int svr_port);
@@ -59,10 +54,24 @@ class Connection
 		void readRequest(void);
 		void validRequest(void);
 		void writeResponse(void);
-		void close(void);
+		void closeSock(void); // juhyelee - need for run because real close(fd)
 		void access(void);
 		bool checkComplete(void);
 		bool checkOvertime(void);
+
+		// juhyelee - need for run
+		eStatus getReadStatus(void) const;
+		eMethod getMethod(void) const;
+		eProcessType getProcType(void) const;
+		std::string getContentType(void) const;
+		std::string getReqBody(void) const;
+		char * getAbsolutePath(void) const;
+		void changeStatus(eStatus const status);
+		void fillRequest(void);
+		void fillRequest(std::vector<std::string> & list);
+		void removeFile(void) const;
+		void removeFile(std::string const & file) const;
+		void processCGI(Kqueue & kque, char * envp[]);
 };
 
 #endif

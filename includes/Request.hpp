@@ -2,7 +2,7 @@
 # define REQUEST_HPP
 
 // juhylee
-# include "status.hpp"
+# include "enum.hpp"
 # include <map>
 # include <vector>
 # include <string>
@@ -32,6 +32,13 @@ class Request
 
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
+		
+		//juhyelee - need for run
+		eStatus getStatus(void) const;
+		eMethod getMethod(void) const;
+		eProcessType extractType(void) const;
+		std::string getContentType(void) const;
+		std::string getBody(void) const;
 };
 
 #endif
