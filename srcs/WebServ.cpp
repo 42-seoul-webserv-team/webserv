@@ -122,3 +122,13 @@ void WebServ::getFileList(std::vector<std::string> & list, DIR * dir)
 		list.push_back(str);
 	}
 }
+
+void Webserv::processCGI(Kqueue kq, char *envp[])
+{
+	std::map<std::string, std::string>	env;
+
+	while ()
+	{
+		
+	}
+}
