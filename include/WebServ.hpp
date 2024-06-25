@@ -10,11 +10,10 @@
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <fcntl.h>
-# include <algorithm>
 # include "ft.hpp"
 # include "Configure.hpp"
 # include "Server.hpp"
-//# include "Connection.hpp"
+# include "Connection.hpp"
 # include "Kqueue.hpp"
 //# include "HTTPSender.hpp"
 # include "Logger.hpp"
@@ -32,7 +31,7 @@ class WebServ {
 		std::map<int, std::vector<int> > mPortGroup;
 		std::map<int, std::string> mResponseCodeMSG;
 		std::map<std::string, std::string> mMIMEType;
-		//std::vector<Connection> mConnection;
+		std::vector<Connection> mConnection;
 		Kqueue mKqueue;
 		//HTTPSender mSender;
 		Logger mLogger;
@@ -44,7 +43,10 @@ class WebServ {
 		void listenServer(void);
 		std::string findMIMEType(std::string const & file);
 		Server *findServer(int socket);
+		Server *findServer(Connection *clt);
 		std::vector<std::string> parseUrl(std::string const & url);
+		void closeConnection(Connection *clt);
+		void parseRequest(Connection *clt, Server *svr);
 
 	public:
 		WebServ(void);
@@ -52,6 +54,8 @@ class WebServ {
 
 		void configure(std::string const & config);
 		void activate(char *envp[]);
+
+		void printAll(void);
 };
 
 #endif

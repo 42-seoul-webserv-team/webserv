@@ -4,13 +4,6 @@
 # include <string>
 # include "ft.hpp"
 
-enum eResponseStatus
-{
-	READY,
-	RUN,
-	COMPLETE,
-};
-
 class Response
 {
 	private:
@@ -22,7 +15,6 @@ class Response
 		std::string mRedirection;
 		std::string mServerName;
 		std::string mBody;
-		eResponseStatus mStatus;
 
 	public:
 		Response(void);
@@ -35,7 +27,6 @@ class Response
 		std::string getRedirection(void);
 		std::string getServerName(void);
 		std::string getBody(void);
-		eResponseStatus getStatus(void);
 
 		void setCode(unsigned int code);
 		void setStatusMsg(std::string const & msg);

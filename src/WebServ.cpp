@@ -33,26 +33,17 @@ std::string WebServ::findMIMEType(std::string const & file)
 
 void WebServ::createResponseCodeMSG(void)
 {
+	this->mResponseCodeMSG[301] = "Moved Permanently";
 	this->mResponseCodeMSG[400] = "Bad Request";
-	// 요청 실패. 문법상 오류가 있어서 서버가 요청사항을 이해하지 못함
 	this->mResponseCodeMSG[403] = "Forbidden";
-	// 금지
 	this->mResponseCodeMSG[404] = "Not Found";
-	// 문서를 찾을 수 없음
 	this->mResponseCodeMSG[405] = "Method not allowed";
-	// 메서드 허용 안됨
 	this->mResponseCodeMSG[408] = "Request timeout";
-	// 요청 시간이 지남.
 	this->mResponseCodeMSG[411] = "Length Required";
-	// 요청 헤더에 Content-Length를 포함하지 않으면 서버가 처리할 수 없음
 	this->mResponseCodeMSG[413] = "Request entity too large";
-	// 요청된 문서가 현재 서버가 다룰 수 있는 크기보다 큼
 	this->mResponseCodeMSG[414] = "Request-URI too long";
-	// 요청한 URI가 너무 김
 	this->mResponseCodeMSG[415] = "Unsupported media type";	
-	// 요청이 알려지지 않은 형태
 	this->mResponseCodeMSG[500] = "Internal Server Error";
-	// 서버 내부 오류
 	this->mResponseCodeMSG[505] = "HTTP Version Not Supported";
 }
 
@@ -79,8 +70,8 @@ void WebServ::createMIMEType(void)
 	this->mMIMEType[".epub"] = "application/epub+zip";
 	this->mMIMEType[".gz"] = "application/gzip";
 	this->mMIMEType[".gif"] = "image/gif";
-	this->mMIMEType[".htm"] = "text/html";
-	this->mMIMEType[".html"] = "text/html";
+	this->mMIMEType[".htm"] = "text/html; charset=utf-8";
+	this->mMIMEType[".html"] = "text/html; charset=utf-8";
 	this->mMIMEType[".ico"] = "image/vnd.microsoft.icon";
 	this->mMIMEType[".ics"] = "text/calendar";
 	this->mMIMEType[".jar"] = "application/java-archive";
@@ -167,13 +158,14 @@ void WebServ::configure(std::string const & config)
 	this->parseConfig(contents);
 	this->listenServer();
 	this->mLogger.open();
+	this->printAll();
 }
 
 void WebServ::listenServer(void)
 {
 	for (size_t i = 0; i < this->mServers.size(); i++)
 	{
-		Server svr = this->mServers[i];
+		Server &svr = this->mServers[i];
 		int port = svr.getPort();
 		std::map<int, std::vector<int> >::iterator group = this->mPortGroup.find(port);
 		if (group == this->mPortGroup.end())
@@ -215,7 +207,7 @@ Server *WebServ::findServer(int socket)
 	return nullptr;
 }
 
-/*Server *WebServ::findServer(Connection *clt)
+Server *WebServ::findServer(Connection *clt)
 {
 	Server *svr = clt->getServer();
 	if (svr != nullptr)
@@ -225,7 +217,7 @@ Server *WebServ::findServer(int socket)
 	if (host.empty())
 		return nullptr;
 	
-	std::map<int, std::vector<int> >::iterator it = this->mPortGroup.find(clt->getPort);
+	std::map<int, std::vector<int> >::iterator it = this->mPortGroup.find(clt->getPort());
 	if (it == this->mPortGroup.end())
 		return nullptr;
 
@@ -241,15 +233,22 @@ Server *WebServ::findServer(int socket)
 	
 	clt->setServer(&(this->mServers[it->second.front()]));
 	return clt->getServer();
-}*/
+}
 
-/*void WebServ::closeConnection(Connection *clt)
+void WebServ::closeConnection(Connection *clt)
 {
+	int socket = clt->getSocket();
 	clt->close();
-	std::vector<Connection>::iterator it = find(this->mConnection.begin(), this->mConnection.end(), *clt);
-	if (it != this->mConnection.end())
-		erase(it);
-}*/
+	std::vector<Connection>::iterator it = this->mConnection.begin();
+	while (it != this->mConnection.end())
+	{
+		if (it->getSocket() == socket)
+		{
+			this->mConnection.erase(it);
+			return ;
+		}
+	}
+}
 
 void WebServ::activate(char *envp[])
 {
@@ -257,68 +256,89 @@ void WebServ::activate(char *envp[])
 
 	while (true)
 	{
-		(void)envp;
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == nullptr)
 			return ;
-/*		if (curEvent->udata == nullptr
+		if (curEvent->udata == nullptr
 				&& (curEvent->flags & EV_ERROR))
-			throw std::runtime_error("");
+			throw std::runtime_error("Server socket failed");
 		try 
 		{
 			if (curEvent->udata == nullptr
 					&& (curEvent->flags & EVFILT_READ))
 			{
+				this->mLogger.putAccess("connect connection");
 				Server *svr = this->findServer(curEvent->ident);
+				if (svr == nullptr)
+					throw std::runtime_error("Cannot find Server");
 				int clt_socket = accept(svr->getSocket(), NULL, NULL);
 				if (clt_socket == -1)
-					throw std::runtime_error("");
+					throw std::runtime_error("accpet connection failed");
 
 				if (fcntl(clt_socket, F_SETFL, O_NONBLOCK) == -1)
-					throw std::runtime_error("");
+					throw std::runtime_error("fcntl connection socket fialed");
 
 				this->mConnection.push_back(Connection(clt_socket, svr->getPort()));
 				this->mKqueue.addEvent(clt_socket, &(this->mConnection.back()));
 			}
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EV_ERROR))
-				throw std::runtime_error("");
+				throw std::runtime_error("Connection socket failed");
 
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EVFILT_READ))
 			{
-				Connection *clt = curEvent->udata;
+				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
-				this->findServer(clt);
-				clt->validRequest();
+				Server *svr = this->findServer(clt);
+				clt->printAll();
+				if (svr != nullptr)
+					this->parseRequest(clt, svr);
 			}
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
-				Connection *clt = curEvent->udata;
-				clt->access();
+				(void)envp;
+				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				clt->printAll();
+				this->closeConnection(clt);
+				/*clt->access();
 				clt->writeResponse();
 				if (clt->checkComplete())
 				{
 					this->mSender.send(clt->getResponse());
 					this->mLogger.putAccess("");
 					this->closeConnection(clt);
-				}
+				}*/
 			}
 		} 
+		/*
+		catch (redirectionException & e)
+		{
+			this->mSender.send();
+			this->closeConnection(curEvent->udata);
+			this->mLogger.putAccess("");
+		}
 		catch (connectionException & e)
 		{
 			Server *svr = this->findServer(curEvent->udata);
 			this->mSender.send(svr->getErrorPage(e.getCode(), this->mResponseCodeMSG[e.getCode()]));
 			this->mLogger.putError("");
 			this->closeConnection(curEvent->udata);
+			this->mLogger.putAccess("");
 		}
+		*/
 		catch (std::exception & e)
 		{
 			this->mLogger.putError(e.what());
 			if (curEvent->udata != nullptr)
-				this->closeConnection(curEvent->udata);
-		}*/
+			{
+				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				clt->printAll();
+				this->closeConnection(clt);
+				this->mLogger.putAccess("close connection");
+			}
+		}
 	}
 
 	/*std::vector<Connection>::iterator it = this->mConnection.begin();
@@ -337,7 +357,81 @@ void WebServ::activate(char *envp[])
 	}*/
 }
 
+void WebServ::parseRequest(Connection *clt, Server *svr)
+{
+	if (clt->getStatus() == COMPLETE || !clt->checkStatus())
+		return ;
 
+	if (clt->getStatus() == STARTLINE && clt->checkStatus())
+	{
+		std::vector<std::string> url = this->parseUrl(clt->getUrl());
+		Location *lct = svr->findLocation(url);
+		if (lct == nullptr)
+			throw std::runtime_error("Can't find Location"); // connectionException(404);
+
+		if (!lct->checkMethod(clt->getMethod()))
+			throw std::runtime_error("Not allowed Method"); // connectionException(405);
+
+		if (!lct->getRedirect().empty())
+			throw std::runtime_error("Redirection"); // redirectionException(lct->getRedirect());
+		else if (lct->checkIndexFile(url))
+		{
+			clt->setAbsoultePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
+			if (lct->checkCGI(url.back()))
+				clt->setType(CGI);
+			else
+				clt->setType(FILES);
+		}
+		else if (lct->checkAutoindex())
+		{
+			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), "text/html");
+			clt->setType(AUTOINDEX);
+		}
+		else if (lct->checkCGI(url.back()))
+		{
+			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setType(CGI);
+		}
+		else
+		{
+			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setType(FILES);
+		}
+		clt->setStatus(HEADER);
+	}
+
+	if (clt->getStatus() == HEADER && clt->checkStatus())
+	{
+		std::string method = clt->getMethod();
+		if (method == "GET" || method == "DELETE")
+			clt->setStatus(COMPLETE);
+		else if (method == "POST")
+		{
+			if (clt->checkUpload())
+			{
+				std::vector<std::string> url = this->parseUrl(clt->getUrl());
+				Location *lct = svr->findLocation(url);
+				if (lct == nullptr)
+					throw std::runtime_error("Can't find Location"); // connectionException(404);
+
+				if (!lct->getUpload().empty())
+				{
+					clt->setAbsoultePath(lct->getRoot(), lct->getUpload(), "text/html");
+					clt->setAbsoultePath(clt->getAbsoultePath(), clt->getUrl(), "text/html");
+				}
+				clt->setType(UPLOAD);
+			}
+			clt->setStatus(BODY);
+		}
+	}
+
+	if (clt->getStatus() == BODY && clt->checkStatus())
+	{
+		if (clt->getType() == UPLOAD)
+			clt->setUpload();
+		clt->setStatus(COMPLETE);
+	}
+}
 
 void WebServ::validConfig(std::string contents)
 {
@@ -465,7 +559,7 @@ void WebServ::validConfig(std::string contents)
 				&& indexFileFlag == false
 				&& line.size() == 2)
 			indexFileFlag = true;
-		else if (line.front() == AUTOINDEX
+		else if (line.front() == AUTOINDEX_FLAG
 				&& locationFlag == true
 				&& autoindexFlag == false
 				&& line.size() == 2
@@ -596,7 +690,7 @@ void	WebServ::parseConfig(std::string & contents)
 			curLct->setRoot(line.back());
 		else if (line.front() == INDEX_FILE)
 			curLct->setIndex(line.back());
-		else if (line.front() == AUTOINDEX)
+		else if (line.front() == AUTOINDEX_FLAG)
 		{
 			if (line.back() == AUTOINDEX_ON)
 				curLct->setAutoindex(true);
@@ -618,5 +712,14 @@ void	WebServ::parseConfig(std::string & contents)
 		else if (line.front() == BLOCK_CLOSE
 				&& locationCloseFlag == false)
 			locationIdx = 0;
+	}
+}
+
+void WebServ::printAll(void)
+{
+	for(std::vector<Server>::iterator it = this->mServers.begin(); it != this->mServers.end(); it++)
+	{
+		it->printAll();
+		std::cout << std::endl;
 	}
 }

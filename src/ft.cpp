@@ -27,8 +27,9 @@ std::vector<std::string> ft::split(std::string const & str, std::string const & 
 	return ret;
 }
 
-int	ft::toInt(std::string str, int unit)
+int	ft::toInt(std::string const & str, int unit)
 {
+	std::string org = str;
 	long long	ret = 0;
 	std::string form = "0123456789abcdef";
 	int			minus = 1;
@@ -37,26 +38,24 @@ int	ft::toInt(std::string str, int unit)
 	if (unit < 2 || 16 < unit)
 		throw static_cast<int>(ret);
 	form.resize(unit);
-	ft::trim(str);
+	ft::trim(org);
 
-	while (!str.empty() 
-			&& (str.front() == '-' || str.front() == '+'))
+	while (!org.empty() 
+			&& (org.front() == '-' || org.front() == '+'))
 	{
-		if (str.front() == '-')
+		if (org.front() == '-')
 			minus *= -1;
-		str.erase(0, 1);
+		org.erase(0, 1);
 	}
 
-	while (!str.empty())
+	while (!org.empty())
 	{
-		pos = form.find(str.front());
+		pos = form.find(org.front());
 		if (pos == std::string::npos)
 			throw static_cast<int>(ret);
-		str.erase(0, 1);
+		org.erase(0, 1);
 		ret *= unit;
 		ret += pos * minus;
-		if (ret < INT_MIN || ret > INT_MAX)
-			throw static_cast<int>(ret / unit);
 	}
 	return static_cast<int>(ret);
 }

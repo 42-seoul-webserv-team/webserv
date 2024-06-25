@@ -46,6 +46,8 @@ class Server
 		void setServerName(std::string const & servername);
 		void setErrorPage(std::string const & file, std::string const & type);
 		void addEmptyLocation(void);
+
+		void printAll(void);
 };
 
 #endif

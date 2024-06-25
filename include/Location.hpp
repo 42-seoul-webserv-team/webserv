@@ -27,21 +27,24 @@ class Location
 		std::string getRoot(void);
 		std::string getRedirect(void);
 		std::string getUpload(void);
-		std::string getCgi(std::string & extension);
+		std::string getCgi(std::string const & extension);
 		
-		bool checkMethod(std::string & reqMethod);
+		bool checkMethod(std::string const & reqMethod);
+		bool checkIndexFile(std::vector<std::string> & url);
 		bool checkAutoindex(void);
+		bool checkCGI(std::string const & url);
 		
 		void setPath(std::vector<std::string> & path);
-		void setIndex(std::string & indexfile);
-		void setRoot(std::string & rootpath);
-		void addMethod(std::string & method);
-		void setRedirect(std::string & redirection);
+		void setIndex(std::string const & indexfile);
+		void setRoot(std::string const & rootpath);
+		void addMethod(std::string const & method);
+		void setRedirect(std::string const & redirection);
 		void setAutoindex(bool option);
-		void setUpload(std::string & dir);
-		void addCgi(std::string & extension, std::string & cgi);
+		void setUpload(std::string const & dir);
+		void addCgi(std::string const & extension, std::string const & cgi);
 		void clearMethod(void);
 
+		void printAll(void);
 };
 
 #endif

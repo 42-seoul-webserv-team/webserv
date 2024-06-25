@@ -66,7 +66,7 @@ void Logger::putAccess(std::string const & log)
 	if (!this->mAccess.is_open())
 		return;
 	this->getTime(this->mAccess);
-	this->mAccess << " " << log << "\n";
+	this->mAccess << " " << log << std::endl;
 
 }
 
@@ -75,5 +75,5 @@ void Logger::putError(std::string const & log)
 	if (!this->mError.is_open())
 		return;
 	this->getTime(this->mError);
-	this->mError << " " << log << "\n";
+	this->mError << " " << log << std::endl;
 }

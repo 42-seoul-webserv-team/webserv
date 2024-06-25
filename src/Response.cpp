@@ -2,7 +2,6 @@
 
 Response::Response(void)
 {
-	this->mStatus = READY;
 	this->mCode = "200";
 	this->mStatusMsg = "OK";
 	this->mConnectionHeader = false;
@@ -51,11 +50,6 @@ std::string Response::getServerName(void)
 std::string Response::getBody(void)
 {
 	return this->mBody;
-}
-
-eResponseStatus Response::getStatus(void)
-{
-	return this->mStatus;
 }
 
 void Response::setCode(unsigned int code)

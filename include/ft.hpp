@@ -12,7 +12,7 @@ namespace ft
 	std::string	trim(std::string & str);
 	std::vector<std::string> split(std::string const & str);
 	std::vector<std::string> split(std::string const & str, std::string const & delim);
-	int toInt(std::string str, int unit);
+	int toInt(std::string const & str, int unit);
 	std::string toString(ssize_t nbr, int unit);
 }
 

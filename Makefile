@@ -8,6 +8,8 @@ TARGET = Location.cpp \
 	   Server.cpp \
 	   ft.cpp \
 	   Response.cpp	\
+	   Request.cpp	\
+	   Connection.cpp \
 	   WebServ.cpp \
 	   Logger.cpp \
 	   Kqueue.cpp \

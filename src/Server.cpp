@@ -205,3 +205,19 @@ std::string Server::getDefaultError(int errcode, std::string const & errmsg)
 
 	return body;
 }
+
+# include <iostream>
+
+void Server::printAll(void)
+{
+	std::cout << "* Print Server" << std::endl;
+	std::cout << "\tPort: " << this->mPort << std::endl;
+	std::cout << "\tSocket: " << this->mSocket << std::endl;
+	std::cout << "\tHost: " << this->mHost << std::endl;
+	std::cout << "\tServer Name: " << this->mServerName << std::endl;
+	std::cout << "\tLimit Body Size: " << this->mBodySize << std::endl;
+	std::cout << "\tError Page: " << this->mErrorPage << std::endl;
+	std::cout << "\tError Page Type: " << this->mErrorPageType << std::endl;
+	for (std::vector<Location>::iterator it = this->mLocation.begin(); it < this->mLocation.end(); it++)
+		it->printAll();
+}
