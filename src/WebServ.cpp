@@ -291,7 +291,6 @@ void WebServ::activate(char *envp[])
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
 				Server *svr = this->findServer(clt);
-				clt->printAll();
 				if (svr != nullptr)
 					this->parseRequest(clt, svr);
 			}
@@ -334,7 +333,6 @@ void WebServ::activate(char *envp[])
 			if (curEvent->udata != nullptr)
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				clt->printAll();
 				this->closeConnection(clt);
 				this->mLogger.putAccess("close connection");
 			}
@@ -377,7 +375,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		else if (lct->checkIndexFile(url))
 		{
 			clt->setAbsoultePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
-			if (lct->checkCGI(url.back()))
+			if (lct->checkCGI(clt->getAbsoultePath()))
 				clt->setType(CGI);
 			else
 				clt->setType(FILES);
@@ -387,7 +385,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), "text/html");
 			clt->setType(AUTOINDEX);
 		}
-		else if (lct->checkCGI(url.back()))
+		else if (lct->checkCGI(clt->getUrl()))
 		{
 			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
 			clt->setType(CGI);

@@ -198,7 +198,7 @@ void Connection::setAbsoultePath(std::string const & root, std::string const & u
 		path += url;
 
 	this->mAbsolutePath = path;
-	this->mRequest.setContentType(type);
+	this->mResponse.setContentType(type);
 }
 
 void Connection::setUpload(void)
@@ -313,9 +313,25 @@ eStatus Connection::getStatus(void)
 void Connection::printAll(void)
 {
 	std::cout << "* Print Connection!" << std::endl;
+	std::cout << "\tStatus: ";
+	switch (this->mValidStatus) {
+		case STARTLINE:
+			std::cout << "STARTLINE";
+			break ;
+		case HEADER:
+			std::cout << "HEADER";
+			break ;
+		case BODY:
+			std::cout << "BODY";
+			break ;
+		case COMPLETE:
+			std::cout << "COMPLETE";
+			break ;
+	}
+	std::cout << std::endl;
 	std::cout << "\tSocket: " << this->mSocket << std::endl;
 	std::cout << "\tConnected Port: " << this->mServerPort << std::endl;
-	std::cout << "\tAbsolutePath: " << this->mAbsolutePath << std::endl;
+	std::cout << "\tAbsolute Path: " << this->mAbsolutePath << std::endl;
 	std::cout << "\tRun Type: ";
 	switch (this->mType) {
 		case NONE:
@@ -346,5 +362,6 @@ void Connection::printAll(void)
 		std::cout << "\t}" << std::endl;
 	}
 	this->mRequest.printAll();
+	std::cout << std::endl;
 }
 

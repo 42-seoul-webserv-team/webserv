@@ -197,6 +197,22 @@ void Request::setContentType(std::string const & type)
 void Request::printAll(void)
 {
 	std::cout << "\t* Print Request!" << std::endl;
+	std::cout << "\t\tStatus: ";
+	switch (this->mReadStatus) {
+		case STARTLINE:
+			std::cout << "STARTLINE";
+			break ;
+		case HEADER:
+			std::cout << "HEADER";
+			break ;
+		case BODY:
+			std::cout << "BODY";
+			break ;
+		case COMPLETE:
+			std::cout << "COMPLETE";
+			break ;
+	}
+	std::cout << std::endl;
 	std::cout << "\t\tMethod: " << this->mMethod << std::endl;
 	std::cout << "\t\tUrl: " << this->mUrl << std::endl;
 	std::cout << "\t\tFragment: " << this->mQuery << std::endl;

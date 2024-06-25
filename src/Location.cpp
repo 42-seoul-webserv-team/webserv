@@ -131,9 +131,14 @@ bool Location::checkCGI(std::string const & url)
 	if (url.empty())
 		return false;
 
-	std::string extension = url.substr(url.rfind('.'));
+	size_t pos = url.rfind('.');
+	if (pos == std::string::npos)
+		return false;
+
+	std::string extension = url.substr(pos + 1);
 	if (this->getCgi(extension).empty())
 		return false;
+
 	return true;
 }
 
