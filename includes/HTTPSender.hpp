@@ -3,6 +3,7 @@
 
 #include "../includes/Response.hpp"
 #include <ctime>
+#include <sys/socket.h>
 
 class HTTPSender
 {

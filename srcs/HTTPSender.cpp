@@ -39,15 +39,21 @@ std::string	HTTPSender::makeMessage(const Response &response)
 	// header lines
 	message += this->getDate();
 	message = "Server: Webserv\r\n";
+	message = 
+	message = "Connection: close"; // 무지성
+	// content-length 대기
+	// content-type 대기
+
 	// Blank line
 	message += "\r\n";
 
+
 	// Entity body (optional)
-	if (response)
 }
 
 void	HTTPSender::sendMessage(int sockfd, const Response &response)
 {
 	std::string	message = this->makeMessage(response);
 
+	send(sockfd, message.c_str(), message.size(), 0);
 }
