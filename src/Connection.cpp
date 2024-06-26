@@ -68,8 +68,12 @@ void Connection::readRequest(void)
   	if (length <= 0)
 	{
     	this->mRequest.set(this->mRemainStr);
-	    return;
+		this->mRemainStr.clear();
+		if (!this->mRequest.checkBodyComplete())
+			throw std::runtime_error("Request message not enough"); // connectionException(400);
+		return ;
   	}
+
 	std::string read_str = this->mRemainStr + buffer;
 
 	size_t pos = read_str.find('\n');
@@ -77,13 +81,8 @@ void Connection::readRequest(void)
 	{
 		std::string line = read_str.substr(0, pos);
 		
-		if (line.back() == '\r')
-		{
-			line.pop_back();
-			read_str.erase(0, pos + 1);
-		}
-		else
-			read_str.erase(0, pos);
+		line.pop_back();
+		read_str.erase(0, pos + 1);
 		
 		this->mRequest.set(line);
 
@@ -95,17 +94,11 @@ void Connection::readRequest(void)
 
 	if (length < BUFFER_SIZE)
 	{
-		if (this->mRequest.getStatus() != COMPLETE)
-		{
-			if (!read_str.empty())
-			{
-				this->mRequest.set(read_str);
-				if (this->mRequest.getStatus() != COMPLETE)
-					throw std::runtime_error(""); // connectionException(400);
-			}
-			else
-				throw std::runtime_error(""); // connectionException(400);
-		}
+		if (!read_str.empty())
+			this->mRequest.set(read_str);
+
+		if (!this->mRequest.checkBodyComplete())
+			throw std::runtime_error("Request message not enough"); // connectionException(400);
 	}
 	else
 		this->mRemainStr = read_str;
@@ -154,7 +147,10 @@ bool Connection::checkStatus(void)
 
 bool Connection::checkUpload(void)
 {
-	std::string type = this->mRequest.getContentType();
+	std::string type = this->mRequest.findHeader("Content-Type");
+	if (type.empty())
+		return false;
+
 	size_t pos = type.find(';');
 	if (pos == std::string::npos)
 		return false;
@@ -203,93 +199,70 @@ void Connection::setAbsoultePath(std::string const & root, std::string const & u
 
 void Connection::setUpload(void)
 {
-	std::string type = this->mRequest.getContentType();
+	std::string type = this->mRequest.findHeader("Content-Type");
 	size_t pos = type.find(';');
 	if (pos == std::string::npos)
-		return ;
+		throw std::runtime_error("Cannot find multipart/form-data");
 
 	std::string boundary = type.substr(pos + 1);
 	pos = boundary.find('=');
 	if (pos == std::string::npos)
-		return ;
+		throw std::runtime_error("Boundary not matched format");
 	
-	std::string start = boundary.substr(pos + 1);
+	std::string start = "--" + boundary.substr(pos + 1);
 	std::string end = start + "--";
 
 	boundary.erase(pos);
 	if (ft::trim(boundary) != "boundary")
-		return ;
+		throw std::runtime_error("Boundary not match format");
 
 	std::string body = this->mRequest.getBody();
 	if (body.empty())
-		return ;
+		throw std::runtime_error("Upload Body empty");
 
-	std::vector<std::string> line = ft::split(body, "\r\n");
-	std::vector<std::string>::iterator it = line.begin();
-	while (it != line.end())
-	{
-		if (*it == end)
-			return ;
 		
-		if (*it != start)
-			return ; // connectionException(400);
-		it++;
-
-		if (it == line.end())
-			return ; // connectionException(400);
-
-		std::vector<std::string> header = ft::split(*it);
-		if (header.size() != 4)
-			return ; // connectionException(400);
-
-		if (header[0] != "Content-Disposition:"
-				|| header[1] != "form-data;")
-			return ; // connectionException(400);
-
-		pos = header[2].find('=');
-		if (pos == std::string::npos
-				|| header[2].substr(0, pos) != "name")
-			return ; // connectionException(400);
-
-		pos = header[3].find('=');
-		if (pos == std::string::npos
-				|| header[3].substr(0, pos) != "filename")
-			return ; // connectionException(400);
-
-		this->mUpload.push_back(std::vector<std::string>());
-		this->mUpload.back().push_back(header[3].substr(pos + 1));
-
-		it++;
-		if (it == line.end())
-			return ; // connectionException(400);
-
-		header = ft::split(*it);
-		if (header.size() != 2)
-			return ; // connectionException(400);
-
-		if (header[0] != "Content-Type:")
-			return ;
-
-		this->mUpload.back().push_back(header[1]);
-
-		it++;
-		if (it == line.end())
-			return ;
-
-		header = ft::split(*it);
-		if (!header.empty())
-			return ;
-
-		it++;
-		std::string content;
-		while (it != line.end()
-				&& *it != start
-				&& *it != end)
+	pos = body.find("\r\n");
+	if (pos == std::string::npos)
+		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+	std::string line = body.substr(0, pos);
+	if (line != start)
+		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+	
+	bool flag = true;	
+	while (!body.empty())
+	{
+		pos = body.find("\r\n");
+		if (pos == std::string::npos)
 		{
-			content += *it + "\n";
-			it++;
+			if (body == end && flag == true)
+				break ;
+			else
+				throw std::runtime_error("Upload Body not match format"); // connectionException(400);
 		}
-		this->mUpload.back().push_back(content);
+		else
+		{
+			line = body.substr(0, pos);
+			body.erase(0, pos + 2);
+		}
+
+		if (line == start && flag == true)
+		{
+			flag = false;
+			this->mUpload.push_back(std::vector<std::string>());
+		}
+		else if (line == end && flag == true)
+			break ;
+		else if (line.empty() && flag == false)
+		{
+			flag =  true;
+			this->mUpload.back().push_back("");
+		}
+		else if (flag == false)
+			this->mUpload.back().push_back(line);
+		else if (flag == true)
+			this->mUpload.back().back() += line + "\r\n";
+		else
+			throw std::runtime_error("Upload Body not match format"); // connectionException(400);
 	}
 }
 
@@ -353,11 +326,13 @@ void Connection::printAll(void)
 	if (!this->mUpload.empty())
 	{
 		std::cout << "\tUpload files: { " << std::endl;
-		for (size_t i = 0; i < this->mUpload.empty(); i++)
+		for (size_t i = 0; i < this->mUpload.size(); i++)
 		{
-			std::cout << "\t\tFile Name: " << this->mUpload[i][0] << std::endl;
-			std::cout << "\t\tContent-Type: " << this->mUpload[i][1] << std::endl;
-			std::cout << "\t\tContent: " << this->mUpload[i][2] << std::endl;
+			std::cout << "\t\tUpload Header: {" << std::endl;
+			for (size_t j = 0; j < this->mUpload[i].size() - 1; j++)
+				std::cout << "\t\t\t" << this->mUpload[i][j] << std::endl;
+			std::cout << "\t\t}" << std::endl;
+			std::cout << "\t\tUpload Content: " << this->mUpload[i].back() << std::endl;;
 		}
 		std::cout << "\t}" << std::endl;
 	}

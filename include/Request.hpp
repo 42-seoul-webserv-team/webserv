@@ -25,7 +25,6 @@ class Request
 		std::map<std::string, std::string> mHeader;
 		std::string mBody;
 		eStatus mReadStatus;
-		std::string mContentType;
 		
 		bool mContentChunk;
 		int mContentLength;
@@ -42,12 +41,12 @@ class Request
 		std::string getMethod(void);
 		std::string getUrl(void);
 		eStatus getStatus(void);
-		std::string getContentType(void);
 		std::string getBody(void);
 
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
-		void setContentType(std::string const & type);
+
+		bool checkBodyComplete(void);
 
 		void printAll(void);
 };

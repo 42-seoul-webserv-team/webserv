@@ -35,7 +35,6 @@ std::string Request::findHeader(std::string const & key)
 
 void Request::set(std::string const & line)
 {
-
 	if (this->mReadStatus == STARTLINE)
 	{
 		this->setStartLine(line);
@@ -88,12 +87,12 @@ void Request::setStartLine(std::string const & line)
 void Request::setHeader(std::string const & line)
 {
 	if (this->mHeaderLength > HEADER_LENGTH_MAX)
-		throw std::runtime_error(""); // connectionException(400);
+		throw std::runtime_error("Header Lenghth too long"); // connectionException(400);
 
 	if (line.empty())
 	{
 		if (this->findHeader("Host").empty())
-			throw std::runtime_error(""); // connectionException(400);
+			throw std::runtime_error("Need Host Header"); // connectionException(400);
 		if (this->mMethod == "POST")
 		{
 			if (!this->findHeader("Content-Length").empty())
@@ -152,10 +151,7 @@ void Request::setBody(std::string const & line)
 		else
 		{
 			if (this->mContentLength > 0)
-			{
-				this->mBody += line;
-				this->mBody += "\n";
-			}
+				this->mBody += line + "\r\n";
 			else
 				this->mReadStatus = COMPLETE;
 		}
@@ -165,7 +161,7 @@ void Request::setBody(std::string const & line)
 		int length = line.size();
 		if (length < this->mContentLength)
 		{
-			this->mBody += line;
+			this->mBody += line + "\r\n";
 			this->mContentLength -= length;
 		}
 		else
@@ -177,19 +173,23 @@ void Request::setBody(std::string const & line)
 	}
 }
 
-std::string Request::getContentType(void)
-{
-	return this->mContentType;
-}
-
 std::string Request::getBody(void)
 {
 	return this->mBody;
 }
 
-void Request::setContentType(std::string const & type)
+bool Request::checkBodyComplete(void)
 {
-	this->mContentType = type;
+	if (this->mReadStatus == COMPLETE)
+		return true;
+	else if (this->mReadStatus < BODY)
+		return false;
+
+	if (this->mHeader["Content-Length"].empty())
+		return false;
+
+	this->mReadStatus = COMPLETE;
+	return true;
 }
 
 # include <iostream>
