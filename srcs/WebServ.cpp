@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <dirent.h>
 
-void WebServ::run(Connection * clt, char * envp[])
+void WebServ::run(Connection * clt)
 {
 	if (clt->getReadStatus() < COMPLETE)
 	{
@@ -14,16 +14,16 @@ void WebServ::run(Connection * clt, char * envp[])
 	switch(clt->getMethod())
 	{
 		case GET:
-			runGET(clt, envp);
+			runGET(clt);
 		case POST:
-			runPOST(clt, envp);
+			runPOST(clt);
 		case DELETE:
-			runDELETE(clt, envp);
+			runDELETE(clt);
 	}
 	clt->changeStatus(COMPLETE);
 }
 
-void WebServ::runGET(Connection * clt, char * envp[])
+void WebServ::runGET(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
 	if (procType == FILE)
@@ -47,11 +47,11 @@ void WebServ::runGET(Connection * clt, char * envp[])
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, envp);
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 
-void WebServ::runPOST(Connection * clt, char * envp[])
+void WebServ::runPOST(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
 	if (procType == FILE)
@@ -77,11 +77,11 @@ void WebServ::runPOST(Connection * clt, char * envp[])
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, envp);
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 
-void WebServ::runDELETE(Connection * clt, char * envp[])
+void WebServ::runDELETE(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
 	if (procType == FILE)
@@ -101,15 +101,17 @@ void WebServ::runDELETE(Connection * clt, char * envp[])
 			file = readdir(dir); // 두번째 .. 도 버린다.
 			while ((file = readdir(dir)) != NULL)
 			{
-				std::string str = file->d_name;
-				clt->removeFile(str);
+				if (std::remove(file->d_name) < 0)
+				{
+					throw std::exception(); // 500
+				}
 			}
 			closedir(dir);
 		}
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, envp);
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 

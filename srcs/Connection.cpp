@@ -4,6 +4,9 @@
 #include <string>
 #include <iostream>
 #include <exception>
+#include <sys/socket.h>
+
+static char ** convert(std::map<std::string, std::string> const env);
 
 eStatus Connection::getReadStatus(void) const
 {
@@ -86,4 +89,54 @@ void Connection::removeFile(void) const
 	{
 		throw std::exception(); // 500
 	}
+}
+
+void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp[])
+{
+	int pair[2];
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) < 0)
+	{
+		throw std::exception(); // 500
+	}
+	fcntl(pair[0], O_NONBLOCK);
+	fcntl(pair[1], O_NONBLOCK);
+
+	int child = fork();
+	if (child < 0)
+	{
+		throw std::exception(); // 500
+	}
+	else if (child == 0)
+	{
+		dup2(pair[1], STDOUT_FILENO);
+		close(pair[0]);
+		close(pair[1])
+		char ** CGIenvp = convert(envp);
+	}
+
+	this->mStatus = PROC_CGI;
+	close(pair[1]);
+	kque.addEvent(pair[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
+}
+
+static char ** convert(std::map<std::string, std::string> const env)
+{
+	char ** ret = new char * [env.size() + 1];
+	size_t index = 0;
+	
+	std::map<std::string, std::string>::const_iterator it;
+	for (it = env.begin(); it != env.end(); it++)
+	{
+		std::string str = it->first + "=" + it->second;
+		std::size_t size = str.size();
+		ret[index] = new char [size + 1];
+		for (std::size_t str_index = 0; str_index < size; str_index++)
+		{
+			ret[index][str_index] = str[str_index];
+		}
+		ret[index][size] = '\0';
+		index++:
+	}
+	ret[index] = NULL;
+	return ret;
 }

@@ -45,6 +45,9 @@ class WebServ {
 		void listenServer(void);
 		std::string findMIMEType(std::string const & file);
 
+		// juhyelee
+		std::map<std::string, std::string> mEnvp;
+
 	public:
 		WebServ(void);
 		~WebServ(void);
@@ -53,10 +56,10 @@ class WebServ {
 		void activate(char *envp[]);
 
 		// juhyelee - run
-		void run(Connection * clt, char * envp[]);
-		void runGET(Connection * clt, char * envp[]);
-		void runPOST(Connection * clt, char * envp[]);
-		void runDELETE(Connection * clt, char * envp[]);
+		void run(Connection * clt);
+		void runGET(Connection * clt);
+		void runPOST(Connection * clt);
+		void runDELETE(Connection * clt);
 		static void getFileList(std::vector<std::string> & list, DIR * dir);
 		static void setEnv(char * envp[]);
 };

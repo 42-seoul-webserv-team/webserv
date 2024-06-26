@@ -70,8 +70,7 @@ class Connection
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
 		void removeFile(void) const;
-		void removeFile(std::string const & file) const;
-		void processCGI(Kqueue & kque, char * envp[]);
+		void processCGI(Kqueue & kque, std::map<std::string, std::stirng> envp[]);
 };
 
 #endif
