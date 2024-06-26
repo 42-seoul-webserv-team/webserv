@@ -6,7 +6,7 @@
 #include <exception>
 #include <sys/socket.h>
 
-static char ** convert(std::map<std::string, std::string> const env);
+static char ** convert(std::map<std::string, std::string> env);
 
 eStatus Connection::getReadStatus(void) const
 {
@@ -76,6 +76,19 @@ void Connection::fillRequest(std::vector<std::string> & list)
 	this->mResponse.setBody(body);
 }
 
+void Connection::fillRequestCGI(void)
+{
+	char buffer[1024];
+	std::string ret = "";
+	while (read(this->mCGIfd[0], buffer, 1023) > 0)
+	{
+		buffer[1023] = '\0';
+		std::string str = buffer;
+		ret += str;
+	}
+	this->mResponse.setBody(ret);
+}
+
 void Connection::removeFile(void) const
 {
 	const char * fileName = this->mAbsolutePath.c_str();
@@ -91,35 +104,40 @@ void Connection::removeFile(void) const
 	}
 }
 
-void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp[])
+void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp)
 {
-	int pair[2];
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) < 0)
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
 	{
 		throw std::exception(); // 500
 	}
-	fcntl(pair[0], O_NONBLOCK);
-	fcntl(pair[1], O_NONBLOCK);
+	fcntl(this->mCGIfd[0], O_NONBLOCK);
+	fcntl(this->mCGIfd[1], O_NONBLOCK);
 
-	int child = fork();
-	if (child < 0)
+	this->mCGIproc = fork();
+	if (this->mCGIproc < 0)
 	{
 		throw std::exception(); // 500
 	}
-	else if (child == 0)
+	else if (this->mCGIproc == 0)
 	{
-		dup2(pair[1], STDOUT_FILENO);
-		close(pair[0]);
-		close(pair[1])
+		dup2(this->mCGIfd[1], STDOUT_FILENO);
+		close(this->mCGIfd[0]);
+		close(this->mCGIfd[1]);
 		char ** CGIenvp = convert(envp);
+		char *argv[] = {
+			"/User/juhyelee/cgi_tester",
+			NULL
+		};
+		execve(argv[0], argv, CGIenvp);
 	}
 
 	this->mStatus = PROC_CGI;
-	close(pair[1]);
-	kque.addEvent(pair[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
+	close(this->mCGIfd[1]);
+	kque.addEvent(this->mCGIfd[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
+	this->mCGIstart = clock();
 }
 
-static char ** convert(std::map<std::string, std::string> const env)
+static char ** convert(std::map<std::string, std::string> env)
 {
 	char ** ret = new char * [env.size() + 1];
 	size_t index = 0;
@@ -135,8 +153,15 @@ static char ** convert(std::map<std::string, std::string> const env)
 			ret[index][str_index] = str[str_index];
 		}
 		ret[index][size] = '\0';
-		index++:
+		index++;
 	}
 	ret[index] = NULL;
 	return ret;
+}
+
+bool Connection::isTimeOver(void) const
+{
+	clock_t currTime = clock();
+	double runtime = static_cast<double>(currTime - this->mCGIstart) / CLOCKS_PER_SEC;
+	return (runtime >= 1);
 }

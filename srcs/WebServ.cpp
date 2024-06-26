@@ -3,6 +3,7 @@
 #include "../includes/Connection.hpp"
 #include <cstdio>
 #include <dirent.h>
+#include <signal.h>
 
 void WebServ::run(Connection * clt)
 {
@@ -47,7 +48,18 @@ void WebServ::runGET(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, this->mEnvp);
+		if (clt->getStatus() != PROC_CGI)
+		{
+			clt->processCGI(this->mKqueue, this->mEnvp);
+		}
+		else if (!clt->isTimeOver())
+		{
+			clt->fillRequestCGI();
+		}
+		else
+		{
+			kill(clt->getCGIproc(), SIGKILL);
+		}
 	}
 }
 
@@ -77,7 +89,18 @@ void WebServ::runPOST(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, this->mEnvp);
+		if (clt->getStatus() != PROC_CGI)
+		{
+			clt->processCGI(this->mKqueue, this->mEnvp);
+		}
+		else if (!clt->isTimeOver())
+		{
+			clt->fillRequestCGI();
+		}
+		else
+		{
+			kill(clt->getCGIproc(), SIGKILL);
+		}
 	}
 }
 
@@ -111,7 +134,18 @@ void WebServ::runDELETE(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		clt->processCGI(this->mKqueue, this->mEnvp);
+		if (clt->getStatus() != PROC_CGI)
+		{
+			clt->processCGI(this->mKqueue, this->mEnvp);
+		}
+		else if (!clt->isTimeOver())
+		{
+			clt->fillRequestCGI();
+		}
+		else
+		{
+			kill(clt->getCGIproc(), SIGKILL);
+		}
 	}
 }
 

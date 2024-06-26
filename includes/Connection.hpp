@@ -41,6 +41,9 @@ class Connection
 		//juhyelee - need for run
 		eStatus mStatus;
 		eProcessType mProcType;
+		int mCGIfd[2];
+		int mCGIproc;
+		clock_t mCGIstart;
 	public:
 		Connection(void);
 		Connection(int socket, int svr_port);
@@ -63,14 +66,18 @@ class Connection
 		eStatus getReadStatus(void) const;
 		eMethod getMethod(void) const;
 		eProcessType getProcType(void) const;
+		eStatus getStatus(void) const;
+		int getCGIproc(void) const;
 		std::string getContentType(void) const;
 		std::string getReqBody(void) const;
 		char * getAbsolutePath(void) const;
 		void changeStatus(eStatus const status);
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
+		void fillRequestCGI(void);
 		void removeFile(void) const;
-		void processCGI(Kqueue & kque, std::map<std::string, std::stirng> envp[]);
+		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
+		bool isTimeOver(void) const;
 };
 
 #endif
