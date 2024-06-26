@@ -3,21 +3,22 @@
 
 # include <sys/time.h>
 # include <unistd.h>
+
 # include "Server.hpp"
 # include "Request.hpp"
 # include "Response.hpp"
 # include "ft.hpp"
+# include "enum.hpp"
+# include "Kqueue.hpp"
 
+# define CRLF "\r\n"
 # define BUFFER_SIZE 4096
 # define OVERTIME 15 
 
-enum eRunType
+enum eValidStatus
 {
-	NONE,
-	FILES,
-	AUTOINDEX,
-	CGI,
-	UPLOAD,
+	READY,
+	METHOD,
 };
 
 class Connection
@@ -28,18 +29,23 @@ class Connection
 		Server *mServer;
 		Request mRequest;
 		Response mResponse;
-		
 		std::string  mAbsolutePath;
-		std::vector<std::vector <std::string> > mUpload;
-
 		eStatus mValidStatus;
-		eRunType mType;
-	
+
+		std::vector<std::vector <std::string> > mUpload; // 1.0 merge 모름
+		eRunType mType; // 1.0 merge 모름
 
 		std::string mRemainStr;
 		struct timeval mTime;
 
 		void renewTime(void);
+
+		//juhyelee - need for run
+		eStatus mStatus;
+		eProcessType mProcType;
+		int mCGIfd[2];
+		int mCGIproc;
+		clock_t mCGIstart;
 
 	public:
 		Connection(void);
@@ -50,6 +56,7 @@ class Connection
 		Server *getServer(void);
 		eStatus getStatus(void);
 		int getPort(void);
+
 		std::string getHost(void);
 		std::string getUrl(void);
 		std::string getMethod(void);
@@ -64,7 +71,8 @@ class Connection
 
 		void readRequest(void);
 		void writeResponse(void);
-		void close(void);
+		// void close(void); // delete 1.0 merge
+		void closeSock(void); // juhyelee - need for run because real close(fd)
 //		void access(void);
 
 		bool checkUpload(void);
@@ -72,6 +80,24 @@ class Connection
 //		bool checkComplete(void);
 		bool checkOvertime(void);
 		bool checkStatus(void);
+
+		// add 1.0 merge
+		eStatus getReadStatus(void) const;
+		eMethod getMethod(void) const;
+		eProcessType getProcType(void) const;
+		eStatus getStatus(void) const;
+		int getCGIproc(void) const;
+		std::string getContentType(void) const;
+		std::string getReqBody(void) const;
+		char * getAbsolutePath(void) const;
+		void changeStatus(eStatus const status);
+		void fillRequest(void);
+		void fillRequest(std::vector<std::string> & list);
+		void fillRequestCGI(void);
+		void removeFile(void) const;
+		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
+		bool isTimeOver(void) const;
+		// add 1.0 merge
 
 		void printAll(void);
 };

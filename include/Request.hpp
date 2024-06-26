@@ -8,23 +8,25 @@
 # define HEADER_LENGTH_MAX 1000000
 # define URL_LENGTH_MAX 1000000
 
-enum eStatus
-{
-	STARTLINE,
-	HEADER,
-	BODY,
-	COMPLETE,
-};
+// enum eStatus enum.hpp에 있음
+// {
+// 	STARTLINE,
+// 	HEADER,
+// 	BODY,
+// 	COMPLETE,
+// };
 
 class Request
 {
 	private:
+
+		eStatus mReadStatus;
 		std::string mMethod;
 		std::string mUrl;
 		std::string mQuery;
-		std::map<std::string, std::string> mHeader;
 		std::string mBody;
-		eStatus mReadStatus;
+		std::string mContentType;
+		std::map<std::string, std::string> mHeader;
 		
 		bool mContentChunk;
 		int mContentLength;
@@ -38,10 +40,12 @@ class Request
 		Request(void);
 		~Request(void);
 
-		std::string getMethod(void);
-		std::string getUrl(void);
-		eStatus getStatus(void);
-		std::string getBody(void);
+		std::string getMethod(void) const;
+		std::string getUrl(void) const;
+		eStatus getStatus(void) const;
+		std::string getBody(void) const;
+		std::string getContentType(void) const;
+		std::string getBody(void) const;
 
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);

@@ -48,6 +48,9 @@ class WebServ {
 		void closeConnection(Connection *clt);
 		void parseRequest(Connection *clt, Server *svr);
 
+		// juhyelee
+		std::map<std::string, std::string> mEnvp;
+
 	public:
 		WebServ(void);
 		~WebServ(void);
@@ -56,6 +59,13 @@ class WebServ {
 		void activate(char *envp[]);
 
 		void printAll(void);
+		// juhyelee - run
+		void run(Connection * clt);
+		void runGET(Connection * clt);
+		void runPOST(Connection * clt);
+		void runDELETE(Connection * clt);
+		static void getFileList(std::vector<std::string> & list, DIR * dir);
+		static void setEnv(char * envp[]);
 };
 
 #endif
