@@ -84,6 +84,10 @@ void WebServ::runPOST(Connection * clt)
 		file << clt->getReqBody();
 		file.close();
 	}
+	else if (procType == AUTOINDEX)
+	{
+		throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
+	}
 	else if (procType == CGI)
 	{
 		clt->processCGI(this->mKqueue, this->mEnvp);

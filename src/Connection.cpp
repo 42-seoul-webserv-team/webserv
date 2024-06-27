@@ -71,13 +71,13 @@ void Connection::fillRequest(void)
 void Connection::fillRequest(std::vector<std::string> & list)
 {
 	std::string title = "Index of " + this->mAbsolutePath;
-	std::string body = "<!DOCTYPE html>\r\n<html>\r\n<head>\r\n\t<title>" + title + "<title>\r\n<head>";
-	body += "<body>\r\n\t<h1>" + title + "<h1>\r\n\t<ul>\r\n";
+	std::string body = "<!DOCTYPE html><html><head><meta charset=\"uft-8\"><title>" + title + "</title></head>";
+	body += "<body><h1>" + title + "<h1><ul>";
 	for (std::vector<std::string>::iterator it = list.begin(); it != list.end(); it++)
 	{
-		body += "\t\t<li><a hret=\"" + *it + "\">" + *it + "</a></li>\r\n";
+		body += "<li><a href=\"" + *it + "\">" + *it + "</a></li>";
 	}
-	body += "\t</ul>\r\n</body>\r\n</html>";
+	body += "</ul></body></html>";
 	this->mResponse.setBody(body);
 }
 
