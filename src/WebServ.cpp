@@ -7,7 +7,7 @@
 
 void WebServ::run(Connection * clt)
 {
-	if (clt->getReadStatus() < COMPLETE)
+	if (clt->getStatus() < COMPLETE)
 	{
 		return ;
 	}
@@ -26,7 +26,6 @@ void WebServ::run(Connection * clt)
 		default:
 			break; 
 	}
-	clt->setStatus(COMPLETE);
 }
 
 void WebServ::runGET(Connection * clt)
@@ -53,18 +52,7 @@ void WebServ::runGET(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		if (clt->getStatus() != PROC_CGI)
-		{
-			clt->processCGI(this->mKqueue, this->mEnvp);
-		}
-		else if (!clt->isTimeOver())
-		{
-			clt->fillRequestCGI();
-		}
-		else
-		{
-			kill(clt->getCGIproc(), SIGKILL);
-		}
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 
@@ -94,18 +82,7 @@ void WebServ::runPOST(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		if (clt->getStatus() != PROC_CGI)
-		{
-			clt->processCGI(this->mKqueue, this->mEnvp);
-		}
-		else if (!clt->isTimeOver())
-		{
-			clt->fillRequestCGI();
-		}
-		else
-		{
-			kill(clt->getCGIproc(), SIGKILL);
-		}
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 
@@ -139,18 +116,7 @@ void WebServ::runDELETE(Connection * clt)
 	}
 	else if (procType == CGI)
 	{
-		if (clt->getStatus() != PROC_CGI)
-		{
-			clt->processCGI(this->mKqueue, this->mEnvp);
-		}
-		else if (!clt->isTimeOver())
-		{
-			clt->fillRequestCGI();
-		}
-		else
-		{
-			kill(clt->getCGIproc(), SIGKILL);
-		}
+		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
 }
 
@@ -224,6 +190,7 @@ void WebServ::createResponseCodeMSG(void)
 	this->mResponseCodeMSG[414] = "Request-URI too long";
 	this->mResponseCodeMSG[415] = "Unsupported media type";	
 	this->mResponseCodeMSG[500] = "Internal Server Error";
+	this->mResponseCodeMSG[504] = "Gateway timeout";
 	this->mResponseCodeMSG[505] = "HTTP Version Not Supported";
 }
 
@@ -481,10 +448,18 @@ void WebServ::activate()
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				if (clt->getStatus() == PROC_CGI)
+				{
+					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+						clt->isTimeOver();
+					else
+						clt->fillRequestCGI();
+				}
+				else
+					this->run(clt);
 				clt->printAll();
 				this->closeConnection(clt);
-				this->run(clt);
-				/*clt->writeResponse();
+				/*
 				if (clt->checkComplete())
 				{
 					this->mSender.send(clt->getResponse());
@@ -539,7 +514,7 @@ void WebServ::activate()
 
 void WebServ::parseRequest(Connection *clt, Server *svr)
 {
-	if (clt->getStatus() == COMPLETE || !clt->checkStatus())
+	if (clt->getStatus() >= PROC_CGI || !clt->checkStatus())
 		return ;
 
 	if (clt->getStatus() == STARTLINE && clt->checkStatus())

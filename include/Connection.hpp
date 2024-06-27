@@ -3,6 +3,8 @@
 
 # include <sys/time.h>
 # include <unistd.h>
+# include <vector>
+# include <signal.h>
 
 # include "Server.hpp"
 # include "Request.hpp"
@@ -64,12 +66,11 @@ class Connection
 
 		void readRequest(void);
 		void writeResponse(void);
-		// void close(void); // delete 1.0 merge
 		void closeSocket(void); // juhyelee - need for run because real close(fd)
 
 		bool checkUpload(void);
 		bool checkMethod(eMethod method);
-//		bool checkComplete(void);
+		bool checkComplete(void);
 		bool checkOvertime(void);
 		bool checkStatus(void);
 
@@ -87,7 +88,7 @@ class Connection
 		void fillRequestCGI(void);
 		void removeFile(void) const;
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
-		bool isTimeOver(void) const;
+		void isTimeOver(void) const;
 		// add 1.0 merge
 
 		void printAll(void);

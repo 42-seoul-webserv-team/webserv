@@ -125,7 +125,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		close(this->mCGIfd[1]);
 		char ** CGIenvp = convert(envp);
 		char * argv[] = {
-			const_cast<char *>("/User/juhyelee/cgi_tester"),
+			const_cast<char *>(this->mCGI.c_str()),
 			NULL
 		};
 		execve(argv[0], argv, CGIenvp);
@@ -159,11 +159,15 @@ static char ** convert(std::map<std::string, std::string> env)
 	return ret;
 }
 
-bool Connection::isTimeOver(void) const
+void Connection::isTimeOver(void) const
 {
 	clock_t currTime = clock();
 	double runtime = static_cast<double>(currTime - this->mCGIstart) / CLOCKS_PER_SEC;
-	return (runtime >= 1);
+	if (runtime >= 1)
+	{
+		kill(this->getCGIproc(), SIGKILL);
+		throw std::runtime_error("CGI Time out"); // connectionException(504);
+	}
 }
 
 // 1.0 merge
@@ -223,6 +227,8 @@ void Connection::setServer(Server *svr)
 {
 	if (svr == nullptr)
 		return ;
+	
+	this->mResponse.setServerName(svr->getServerName());
 	this->mServer = svr;
 }
 
@@ -284,22 +290,17 @@ void Connection::closeSocket(void)
 	if (this->mSocket != -1)
 		::close(this->mSocket);
 }
-/*
-void Connection::access(void)
-{
 
-}
-*/
 bool Connection::checkMethod(eMethod method)
 {
 	return this->mRequest.getMethod() == method;
 }
-/*
-bool Connection::checkCompelte(void)
-{
 
+bool Connection::checkComplete(void)
+{
+	return this->mStatus == COMPLETE && this->mRequest.getStatus() == COMPLETE;
 }
-*/
+
 bool Connection::checkOvertime(void)
 {
 	struct timeval now;
@@ -516,6 +517,7 @@ void Connection::printAll(void)
 		std::cout << "\t}" << std::endl;
 	}
 	this->mRequest.printAll();
+	this->mResponse.printAll();
 	std::cout << std::endl;
 }
 
