@@ -24,7 +24,7 @@ int main(int argc, char *argv[], char *envp[])
 		while (gSignal)
 			manager.activate();
 
-	} catch (std::exception &e) {
+	} catch (ManagerException &e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 	}
 	return 0;

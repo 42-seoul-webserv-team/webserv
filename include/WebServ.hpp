@@ -16,10 +16,15 @@
 # include "Server.hpp"
 # include "Connection.hpp"
 # include "Kqueue.hpp"
-//# include "HTTPSender.hpp"
+# include "HTTPSender.hpp" // juhyelee - for send error page
 # include "Logger.hpp"
 # include "Message.hpp"
 # include "value.hpp"
+
+// juhyelee - Exception
+# include "ManagerExcption.hpp"
+# include "ConnectionException.hpp"
+# include "RedirectionException.hpp"
 
 class WebServ {
 	private:

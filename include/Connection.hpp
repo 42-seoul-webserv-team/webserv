@@ -12,6 +12,9 @@
 # include "Kqueue.hpp"
 # include "value.hpp"
 
+// juhyelee - ConnectionException
+# include "ConnectionException.hpp"
+
 class Connection
 {
 	private:

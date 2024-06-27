@@ -49,7 +49,7 @@ void Connection::fillRequest(void)
 	file.open(this->mAbsolutePath.c_str());
 	if (!file.is_open())
 	{
-		throw std::exception(); // 404
+		throw ConnectionException("Not exist file", NOT_FOUND);
 	}
 
 	std::string body = "";
@@ -95,12 +95,12 @@ void Connection::removeFile(void) const
 	int toCheck = open(fileName, O_RDONLY);
 	if (toCheck < 0)
 	{
-		throw std::exception(); // 404
+		throw ConnectionException("Not exist file", NOT_FOUND);
 	}
 	close(toCheck);
 	if (std::remove(fileName) < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to remove file", INTERAL_SERVER_ERROR);
 	}
 }
 
@@ -108,7 +108,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 {
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
 	fcntl(this->mCGIfd[0], O_NONBLOCK);
 	fcntl(this->mCGIfd[1], O_NONBLOCK);
@@ -116,7 +116,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to create CGI process", INTERAL_SERVER_ERROR);
 	}
 	else if (this->mCGIproc == 0)
 	{
@@ -239,7 +239,7 @@ void Connection::readRequest(void)
     	this->mRequest.set(this->mRemainStr);
 		this->mRemainStr.clear();
 		if (!this->mRequest.checkBodyComplete())
-			throw std::runtime_error("Request message not enough"); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
 		return ;
   	}
 
@@ -267,7 +267,7 @@ void Connection::readRequest(void)
 			this->mRequest.set(read_str);
 
 		if (!this->mRequest.checkBodyComplete())
-			throw std::runtime_error("Request message not enough"); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
 	}
 	else
 		this->mRemainStr = read_str;
@@ -366,31 +366,31 @@ void Connection::setUpload(void)
 	std::string type = this->mRequest.findHeader("Content-Type");
 	size_t pos = type.find(';');
 	if (pos == std::string::npos)
-		throw std::runtime_error("Cannot find multipart/form-data");
+		throw ConnectionException("Cannot find multipart/form-data", BAD_REQUEST);
 
 	std::string boundary = type.substr(pos + 1);
 	pos = boundary.find('=');
 	if (pos == std::string::npos)
-		throw std::runtime_error("Boundary not matched format");
+		throw ConnectionException("Boundary not matched format", BAD_REQUEST);
 	
 	std::string start = "--" + boundary.substr(pos + 1);
 	std::string end = start + "--";
 
 	boundary.erase(pos);
 	if (ft::trim(boundary) != "boundary")
-		throw std::runtime_error("Boundary not match format");
+		throw ConnectionException("Boundary not match format", BAD_REQUEST);
 
 	std::string body = this->mRequest.getBody();
 	if (body.empty())
-		throw std::runtime_error("Upload Body empty");
+		throw ConnectionException("Upload Body empty", BAD_REQUEST);
 
 		
 	pos = body.find("\r\n");
 	if (pos == std::string::npos)
-		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	std::string line = body.substr(0, pos);
 	if (line != start)
-		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	
 	bool flag = true;	
 	while (!body.empty())
@@ -401,7 +401,7 @@ void Connection::setUpload(void)
 			if (body == end && flag == true)
 				break ;
 			else
-				throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+				throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 		}
 		else
 		{
@@ -426,7 +426,7 @@ void Connection::setUpload(void)
 		else if (flag == true)
 			this->mUpload.back().back() += line + "\r\n";
 		else
-			throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+			throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	}
 }
 

@@ -315,7 +315,7 @@ void WebServ::configure(std::string const & config)
 
 	conf.open(config.c_str());
 	if (!conf.is_open())
-		throw std::runtime_error("Configuration open() failed!");
+		throw ManagerException("Configuration open() failed!");
 
 	while (conf.good())
 		contents.push_back(conf.get());
@@ -324,7 +324,7 @@ void WebServ::configure(std::string const & config)
 	if (conf.bad())
 	{
 		conf.close();
-		throw std::runtime_error("Configuration read() failed!");
+		throw ManagerException("Configuration read() failed!");
 	}
 
 	conf.close();
@@ -332,7 +332,7 @@ void WebServ::configure(std::string const & config)
 	try { 
 		this->validConfig(contents); 
 	} catch (size_t row) {
-		throw std::runtime_error("Configuration " + config + ":" + ft::toString(row, 10) + " not valid!");
+		throw ManagerException("Configuration " + config + ":" + ft::toString(row, 10) + " not valid!");
 	}
 
 	this->parseConfig(contents);
@@ -353,7 +353,7 @@ void WebServ::listenServer(void)
 			this->mPortGroup[port] = std::vector<int>(1, i);
 			int svr_socket = socket(PF_INET, SOCK_STREAM, 0);
 			if (svr_socket == -1)
-				throw std::runtime_error("Server socket() failed!");
+				throw ManagerException("Server socket() failed!");
 
 			svr.setSocket(svr_socket);
 
@@ -362,13 +362,13 @@ void WebServ::listenServer(void)
 			addr.sin_port = htons(port);
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
 			if (bind(svr_socket, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) == -1)
-				throw std::runtime_error("Server bind() failed!");
+				throw ManagerException("Server bind() failed!");
 
 			if (listen(svr_socket, LISTEN_MAX) == -1)
-				throw std::runtime_error("Server listen() failed!");
+				throw ManagerException("Server listen() failed!");
 
 			if (fcntl(svr_socket, F_SETFL, O_NONBLOCK) == -1)
-				throw std::runtime_error("Server fcntl() failed!");
+				throw ManagerException("Server fcntl() failed!");
 
 			this->mKqueue.addEvent(svr_socket, nullptr);
 		}
@@ -439,34 +439,37 @@ void WebServ::activate()
 
 	while (true)
 	{
+		// juhyelee - for send Error page
+		Server *svr = NULL;
+
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == nullptr)
 			return ;
 		if (curEvent->udata == nullptr
 				&& (curEvent->flags & EV_ERROR))
-			throw std::runtime_error("Server socket failed");
+			throw ManagerException("Server socket failed");
 		try 
 		{
 			if (curEvent->udata == nullptr
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				this->mLogger.putAccess("connect connection");
-				Server *svr = this->findServer(curEvent->ident);
+				svr = this->findServer(curEvent->ident); // juhyelee - for send Error page
 				if (svr == nullptr)
-					throw std::runtime_error("Cannot find Server");
+					throw ManagerException("Cannot find Server");
 				int clt_socket = accept(svr->getSocket(), NULL, NULL);
 				if (clt_socket == -1)
-					throw std::runtime_error("accpet connection failed");
+					throw ManagerException("accpet connection failed");
 
 				if (fcntl(clt_socket, F_SETFL, O_NONBLOCK) == -1)
-					throw std::runtime_error("fcntl connection socket fialed");
+					throw ManagerException("fcntl connection socket fialed");
 
 				this->mConnection.push_back(Connection(clt_socket, svr->getPort()));
 				this->mKqueue.addEvent(clt_socket, &(this->mConnection.back()));
 			}
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EV_ERROR))
-				throw std::runtime_error("Connection socket failed");
+				throw ManagerException("Connection socket failed");
 
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EVFILT_READ))
@@ -509,13 +512,30 @@ void WebServ::activate()
 			this->mLogger.putAccess("");
 		}
 		*/
-		catch (std::exception & e)
+		catch (ConnectionException & e)
 		{
 			this->mLogger.putError(e.what());
-			if (curEvent->udata != nullptr)
+			Connection *clt = static_cast<Connection *>(curEvent->udata); // juhyelee - for send error page
+			if (clt != NULL)
 			{
-				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				// juhyelee - Send Error Page
+				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
+				HTTPSender sender;
+				sender.sendMessage(clt->getSocket, errorResponse);
 				this->closeConnection(clt);
+				this->mLogger.putAccess("close connection");
+			}
+		}
+		catch (RedirectionException & e) // juhyelee - Send redirection
+		{
+			this->mLogger.putError(e.what());
+			Connection *clt = static_cast<Connection *>(curEvent->udata);
+			if (clt != NULL)
+			{
+				HTTPSender sender;
+				sender.sendMessage(clt->getSocket, e.getRedirLoc(), e.getServerName());
+				this->closeConnection(clt);
+				this->mLogger.putAccess("redirection");
 				this->mLogger.putAccess("close connection");
 			}
 		}
@@ -547,13 +567,13 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		std::vector<std::string> url = this->parseUrl(clt->getUrl());
 		Location *lct = svr->findLocation(url);
 		if (lct == nullptr)
-			throw std::runtime_error("Can't find Location"); // connectionException(404);
+			throw ConnectionException("Can't find Location", NOT_FOUND); // connectionException(404);
 
 		if (!lct->checkMethod(clt->getMethod()))
-			throw std::runtime_error("Not allowed Method"); // connectionException(405);
+			throw ConnectionException("Not allowed Method", MATHOD_NOT_ALLOWED); // connectionException(405);
 
 		if (!lct->getRedirect().empty())
-			throw std::runtime_error("Redirection"); // redirectionException(lct->getRedirect());
+			throw RedirectionException(lct->getRedirect(), svr->getServerName()); // redirectionException(lct->getRedirect());
 		else if (lct->checkIndexFile(url))
 		{
 			clt->setAbsolutePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
@@ -597,7 +617,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 				std::vector<std::string> url = this->parseUrl(clt->getUrl());
 				Location *lct = svr->findLocation(url);
 				if (lct == nullptr)
-					throw std::runtime_error("Can't find Location"); // connectionException(404);
+					throw ConnectionException("Can't find Location", NOT_FOUND); // connectionException(404);
 
 				if (!lct->getUpload().empty())
 				{

@@ -13,6 +13,9 @@ TARGET = Location.cpp \
 	   WebServ.cpp \
 	   Logger.cpp \
 	   Kqueue.cpp \
+	   ManagerException.cpp \
+	   ConnectionException.cpp \
+	   RedirectionException.cpp \
 	   main.cpp
 SRC = $(TARGET:%=$(BUILD)/%) 
 OBJ = $(SRC:.cpp=.o)
