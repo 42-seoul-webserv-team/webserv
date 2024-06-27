@@ -43,11 +43,6 @@ int Connection::getCGIproc(void) const
 	return this->mCGIproc;
 }
 
-void Connection::changeStatus(eStatus const status)
-{
-	this->mStatus = status;
-}
-
 void Connection::fillRequest(void)
 {
 	std::ifstream file;

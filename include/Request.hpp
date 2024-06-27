@@ -5,9 +5,7 @@
 # include <map>
 # include "enum.hpp"
 # include "ft.hpp"
-
-# define HEADER_LENGTH_MAX 1000000
-# define URL_LENGTH_MAX 1000000
+# include "value.hpp"
 
 class Request
 {

@@ -26,7 +26,7 @@ void WebServ::run(Connection * clt)
 		default:
 			break; 
 	}
-	clt->changeStatus(COMPLETE);
+	clt->setStatus(COMPLETE);
 }
 
 void WebServ::runGET(Connection * clt)
@@ -161,6 +161,22 @@ void WebServ::getFileList(std::vector<std::string> & list, DIR * dir)
 	{
 		std::string str = file->d_name;
 		list.push_back(str);
+	}
+}
+
+void WebServ::setEnv(char **&envp)
+{
+	while (*envp != NULL)
+	{
+		std::string str = *envp;
+		size_t pos = str.find('=');
+		if (pos != std::string::npos)
+		{
+			std::string key = str.substr(0, pos);
+			std::string value = str.substr(pos + 1);
+			this->mEnvp[key] = value;
+		}
+		envp++;
 	}
 }
 
@@ -414,8 +430,11 @@ void WebServ::closeConnection(Connection *clt)
 	}
 }
 
-void WebServ::activate(char *envp[])
+void WebServ::activate()
 {
+	if (this->mEnvp.empty())
+		return ;
+
 	this->mKqueue.checkEvent();
 
 	while (true)
@@ -461,7 +480,6 @@ void WebServ::activate(char *envp[])
 			if (curEvent->udata != nullptr
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
-				(void)envp;
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->printAll();
 				this->closeConnection(clt);

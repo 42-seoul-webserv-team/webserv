@@ -19,12 +19,7 @@
 //# include "HTTPSender.hpp"
 # include "Logger.hpp"
 # include "Message.hpp"
-
-# define DEFAULT_CONFIG "conf/default.conf"
-# define PORT_MIN 1024
-# define PORT_MAX 49151
-# define LISTEN_MAX 10
-
+# include "value.hpp"
 
 class WebServ {
 	private:
@@ -57,7 +52,7 @@ class WebServ {
 		~WebServ(void);
 
 		void configure(std::string const & config);
-		void activate(char *envp[]);
+		void activate();
 
 		void printAll(void);
 		// juhyelee - run
@@ -65,8 +60,8 @@ class WebServ {
 		void runGET(Connection * clt);
 		void runPOST(Connection * clt);
 		void runDELETE(Connection * clt);
-		static void getFileList(std::vector<std::string> & list, DIR * dir);
-		static void setEnv(char * envp[]);
+		void getFileList(std::vector<std::string> & list, DIR * dir);
+		void setEnv(char **&envp);
 };
 
 #endif

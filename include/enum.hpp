@@ -16,4 +16,9 @@ enum eProcessType
 	NONE, FILES, AUTOINDEX, CGI, UPLOAD
 };
 
+enum eOpenFail
+{
+	NOT, ACCESS, ERROR,	BOTH
+};
+
 #endif

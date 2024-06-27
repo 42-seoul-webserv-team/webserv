@@ -8,9 +8,7 @@
 # include "ft.hpp"
 # include "Location.hpp"
 # include "Response.hpp"
-
-# define DEFAULT_SERVERNAME "WebServ"
-# define DEFAULT_BODY_SIZE "4K"
+# include "value.hpp"
 
 class Server
 {

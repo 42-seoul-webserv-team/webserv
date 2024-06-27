@@ -6,17 +6,9 @@
 # include <exception>
 # include <ctime>
 # include "ft.hpp"
+# include "enum.hpp"
+# include "value.hpp"
 
-# define DEFAULT_ACCESS_LOG "access.log"
-# define DEFAULT_ERROR_LOG "error.log"
-
-enum eOpenFail
-{
-	NOT,
-	ACCESS,
-	ERROR,
-	BOTH,
-};
 
 class Logger
 {

@@ -10,10 +10,7 @@
 # include "ft.hpp"
 # include "enum.hpp"
 # include "Kqueue.hpp"
-
-# define CRLF "\r\n"
-# define BUFFER_SIZE 4096
-# define OVERTIME 15 
+# include "value.hpp"
 
 class Connection
 {
@@ -85,7 +82,6 @@ class Connection
 		std::string getContentType(void);
 		std::string getReqBody(void) const;
 		char * getAbsolutePath(void) const;
-		void changeStatus(eStatus const status);
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
 		void fillRequestCGI(void);
