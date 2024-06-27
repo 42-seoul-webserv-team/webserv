@@ -76,7 +76,7 @@ void WebServ::runPOST(Connection * clt)
 		DIR * dir = opendir(clt->getAbsolutePath());
 		if (dir == NULL)
 		{
-			throw std::exception(); // 404
+			throw ConnectionException("Not exist file", NOT_FOUND); // 404
 		}
 		closedir(dir);
 
@@ -87,7 +87,7 @@ void WebServ::runPOST(Connection * clt)
 		file.open(fileName.c_str());
 		if (!file.is_open())
 		{
-			throw std::exception(); // 500
+			throw ConnectionException("Fail to open", INTERAL_SERVER_ERROR); // 500
 		}
 		file << clt->getReqBody();
 		file.close();
@@ -131,7 +131,7 @@ void WebServ::runDELETE(Connection * clt)
 			{
 				if (std::remove(file->d_name) < 0)
 				{
-					throw std::exception(); // 500
+					throw ConnectionException("Fail to remove file", INTERAL_SERVER_ERROR); // 500
 				}
 			}
 			closedir(dir);
