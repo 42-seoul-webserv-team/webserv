@@ -456,7 +456,11 @@ void WebServ::activate()
 					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
 					else
+					{
 						clt->fillRequestCGI();
+						clt->setStatus(COMPLETE);
+						close(curEvent->ident);
+					}
 				}
 				else
 					this->run(clt);
@@ -513,6 +517,15 @@ void WebServ::activate()
 				this->closeConnection(clt);
 				this->mLogger.putAccess("redirection");
 				this->mLogger.putAccess("close connection");
+			}
+		}
+		catch(ManagerException & e)
+		{
+			this->mLogger.putError(e.what());
+			Connection *clt = static_cast<Connection *>(curEvent->udata);
+			if (clt != NULL)
+			{
+				this->closeConnection(clt);
 			}
 		}
 	}

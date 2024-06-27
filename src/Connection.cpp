@@ -166,7 +166,7 @@ void Connection::isTimeOver(void) const
 	if (runtime >= 1)
 	{
 		kill(this->getCGIproc(), SIGKILL);
-		throw std::runtime_error("CGI Time out"); // connectionException(504);
+		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT); // connectionException(504);
 	}
 }
 
