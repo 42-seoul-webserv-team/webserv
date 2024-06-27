@@ -24,27 +24,28 @@ std::string	HTTPSender::makeMessage(Response response)
 {
 	struct tm	*newtime;
 	std::string	message;
-	
+
+	message.reserve(800);
 	// status line
 	message += "HTTP/1.1 ";
-	message += response.getCode();
-	message += " ";
-	message += response.getStatusMsg();
-	message += "\r\n";
+	message += response.getCode() + " ";
+	message += response.getStatusMsg() + CRLF;
 
 	// header lines
 	message += this->getDate();
-	message += "Server: " + response.getServerName() + "\r\n";
+	message += "Server: " + response.getServerName() + CRLF;
 	message += "Connection: Closed\r\n";
 
-	message += response.getContentLength() + "\r\n";
+	message += response.getContentLength() + CRLF;
 	if (atoi(response.getContentLength().c_str()) != 0)
-		message += response.getContentType() + "\r\n";
+		message += response.getContentType() + CRLF;
 
 	// Blank line
-	message += "\r\n";
+	message += CRLF;
 
 	message += response.getBody();
+
+	return (message);
 }
 
 void	HTTPSender::sendMessage(int sockfd, const Response &response)
@@ -61,8 +62,11 @@ std::string	HTTPSender::makeMessage(std::string location, std::string serverName
 	message.reserve(800);
 
 	message += "HTTP/1.1 301 Moved Permanently\r\n";
-	message += "Location: " + location + "\r\n";
-	message += "Server: " + serverName;
+	message += "Location: " + location + CRLF;
+	message += "Server: " + serverName + CRLF;
+
+	message += CRLF;
+	return (message);
 }
 
 void	HTTPSender::sendMessage(int sockfd, std::string location, std::string serverName) // redirection

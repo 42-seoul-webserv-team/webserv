@@ -1,6 +1,7 @@
 #ifndef HTTPSENDER_HPP
 #define HTTPSENDER_HPP
 
+#include "value.hpp"
 #include "Response.hpp"
 #include <ctime>
 #include <sys/socket.h>
