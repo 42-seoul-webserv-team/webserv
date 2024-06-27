@@ -10,6 +10,7 @@
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <fcntl.h>
+# include <dirent.h>
 # include "ft.hpp"
 # include "Configure.hpp"
 # include "Server.hpp"

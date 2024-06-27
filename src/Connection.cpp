@@ -23,9 +23,9 @@ eProcessType Connection::getProcType(void) const
 	return this->mProcType;
 }
 
-std::string Connection::getContentType(void) const
+std::string Connection::getContentType(void)
 {
-	return this->mRequest.getContentType();
+	return this->mRequest.findHeader("Content-Type");
 }
 
 std::string Connection::getReqBody(void) const
@@ -35,7 +35,12 @@ std::string Connection::getReqBody(void) const
 
 char * Connection::getAbsolutePath(void) const
 {
-	return (char *)(this->mAbsolutePath.c_str());
+	return (char *)this->mAbsolutePath.c_str();
+}
+
+int Connection::getCGIproc(void) const
+{
+	return this->mCGIproc;
 }
 
 void Connection::changeStatus(eStatus const status)
@@ -124,8 +129,8 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
 		char ** CGIenvp = convert(envp);
-		char *argv[] = {
-			"/User/juhyelee/cgi_tester",
+		char * argv[] = {
+			const_cast<char *>("/User/juhyelee/cgi_tester"),
 			NULL
 		};
 		execve(argv[0], argv, CGIenvp);
@@ -174,8 +179,8 @@ Connection::Connection(void)
 	this->mSocket = -1;
 	this->mServerPort = -1;
 	this->mServer = nullptr;
-	this->mValidStatus = STARTLINE;
-	this->mType = NONE;
+	this->mStatus = STARTLINE;
+	this->mProcType = NONE;
 	this->renewTime();
 }
 
@@ -184,8 +189,8 @@ Connection::Connection(int socket, int svr_port)
 	this->mSocket = socket;
 	this->mServerPort = svr_port;
 	this->mServer = nullptr;
-	this->mValidStatus = STARTLINE;
-	this->mType = NONE;
+	this->mStatus = STARTLINE;
+	this->mProcType = NONE;
 	this->renewTime();
 }
 
@@ -279,7 +284,7 @@ void Connection::writeResponse(void)
 
 }
 
-void Connection::closeSock(void)
+void Connection::closeSocket(void)
 {
 	if (this->mSocket != -1)
 		::close(this->mSocket);
@@ -290,7 +295,7 @@ void Connection::access(void)
 
 }
 */
-bool Connection::checkMethod(std::string const & method)
+bool Connection::checkMethod(eMethod method)
 {
 	return this->mRequest.getMethod() == method;
 }
@@ -311,7 +316,7 @@ bool Connection::checkOvertime(void)
 
 bool Connection::checkStatus(void)
 {
-	return this->mValidStatus < this->mRequest.getStatus();
+	return this->mStatus < this->mRequest.getStatus();
 }
 
 bool Connection::checkUpload(void)
@@ -335,22 +340,17 @@ std::string Connection::getUrl(void)
 	return this->mRequest.getUrl();
 }
 
-std::string Connection::getMethod(void)
+eMethod Connection::getMethod(void)
 {
 	return this->mRequest.getMethod();
 }
 
-std::string Connection::getAbsoultePath(void)
-{
-	return this->mAbsolutePath;
-}
-
 void Connection::setStatus(eStatus status)
 {
-	this->mValidStatus = status;
+	this->mStatus = status;
 }
 
-void Connection::setAbsoultePath(std::string const & root, std::string const & url, std::string const & type)
+void Connection::setAbsolutePath(std::string const & root, std::string const & url, std::string const & type)
 {
 	std::string path = root;
 
@@ -435,19 +435,24 @@ void Connection::setUpload(void)
 	}
 }
 
-eRunType Connection::getType(void)
+eProcessType Connection::getType(void)
 {
-	return this->mType;
+	return this->mProcType;
 }
 
-void Connection::setType(eRunType type)
+void Connection::setType(eProcessType type)
 {
-	this->mType = type;
+	this->mProcType = type;
 }
 
 eStatus Connection::getStatus(void)
 {
-	return this->mValidStatus;
+	return this->mStatus;
+}
+
+void Connection::setCGI(std::string const & cgi)
+{
+	this->mCGI = cgi;
 }
 
 # include <iostream>
@@ -456,7 +461,7 @@ void Connection::printAll(void)
 {
 	std::cout << "* Print Connection!" << std::endl;
 	std::cout << "\tStatus: ";
-	switch (this->mValidStatus) {
+	switch (this->mStatus) {
 		case STARTLINE:
 			std::cout << "STARTLINE";
 			break ;
@@ -465,6 +470,9 @@ void Connection::printAll(void)
 			break ;
 		case BODY:
 			std::cout << "BODY";
+			break ;
+		case PROC_CGI:
+			std::cout << "PROC_CGI";
 			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";
@@ -475,7 +483,7 @@ void Connection::printAll(void)
 	std::cout << "\tConnected Port: " << this->mServerPort << std::endl;
 	std::cout << "\tAbsolute Path: " << this->mAbsolutePath << std::endl;
 	std::cout << "\tRun Type: ";
-	switch (this->mType) {
+	switch (this->mProcType) {
 		case NONE:
 			std::cout << "NONE" << std::endl;
 			break ;

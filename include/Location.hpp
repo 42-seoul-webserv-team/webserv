@@ -1,9 +1,10 @@
 #ifndef LOCATION_HPP
 # define LOCATION_HPP
 
-#include <string>
-#include <map>
-#include <vector>
+# include <string>
+# include <map>
+# include <vector>
+# include "enum.hpp"
 
 # define HTTP_VERSION "HTTP/1.1"
 
@@ -13,7 +14,7 @@ class Location
 		std::vector<std::string> mPath;
 		std::string mIndex;
 		std::string mRoot;
-		std::vector<std::string> mMethod;
+		std::vector<eMethod> mMethod;
 		std::string mRedirect;
 		std::string mUpload;
 		std::map<std::string, std::string> mCgi;
@@ -27,9 +28,9 @@ class Location
 		std::string getRoot(void);
 		std::string getRedirect(void);
 		std::string getUpload(void);
-		std::string getCgi(std::string const & extension);
+		std::string getCGI(std::string const & extension);
 		
-		bool checkMethod(std::string const & reqMethod);
+		bool checkMethod(eMethod reqMethod);
 		bool checkIndexFile(std::vector<std::string> & url);
 		bool checkAutoindex(void);
 		bool checkCGI(std::string const & url);
@@ -37,7 +38,7 @@ class Location
 		void setPath(std::vector<std::string> & path);
 		void setIndex(std::string const & indexfile);
 		void setRoot(std::string const & rootpath);
-		void addMethod(std::string const & method);
+		void addMethod(eMethod method);
 		void setRedirect(std::string const & redirection);
 		void setAutoindex(bool option);
 		void setUpload(std::string const & dir);

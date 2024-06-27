@@ -13,17 +13,17 @@ Request::~Request(void)
 	mHeader.clear();
 }
 
-std::string Request::getMethod(void)
+eMethod Request::getMethod(void) const
 {
 	return this->mMethod;
 }
 
-std::string Request::getUrl(void)
+std::string Request::getUrl(void) const
 {
 	return this->mUrl;
 }
 
-eStatus Request::getStatus(void)
+eStatus Request::getStatus(void) const
 {
 	return this->mReadStatus;
 }
@@ -56,7 +56,15 @@ void Request::setStartLine(std::string const & line)
 	if (words.empty() || words.size() != 3)
 		throw std::runtime_error("Start Line Form not valid"); // connectionException(400);
 
-	this->mMethod = words[0];
+	if (words[0] == "GET")
+		this->mMethod = GET;
+	else if (words[0] == "POST")
+		this->mMethod = POST;
+	else if (words[0] == "DELETE")
+		this->mMethod = DELETE;
+	else
+		throw std::runtime_error("Unkown Method"); // connectionException(400);
+
 
 	if (words[1].size() > URL_LENGTH_MAX)
 		throw std::runtime_error("URL too long"); // connectionException(414);
@@ -93,7 +101,7 @@ void Request::setHeader(std::string const & line)
 	{
 		if (this->findHeader("Host").empty())
 			throw std::runtime_error("Need Host Header"); // connectionException(400);
-		if (this->mMethod == "POST")
+		if (this->mMethod == POST)
 		{
 			if (!this->findHeader("Content-Length").empty())
 			{
@@ -173,7 +181,7 @@ void Request::setBody(std::string const & line)
 	}
 }
 
-std::string Request::getBody(void)
+std::string Request::getBody(void) const
 {
 	return this->mBody;
 }
@@ -211,9 +219,25 @@ void Request::printAll(void)
 		case COMPLETE:
 			std::cout << "COMPLETE";
 			break ;
+		default:
+			break ;
 	}
 	std::cout << std::endl;
-	std::cout << "\t\tMethod: " << this->mMethod << std::endl;
+	std::cout << "\t\tMethod: ";
+	switch (this->mMethod) {
+		case GET:
+			std::cout << "GET";
+			break ;
+		case POST:
+			std::cout << "POST";
+			break ;
+		case DELETE:
+			std::cout << "DELETE";
+			break ;
+		default:
+			break ;
+	}
+	std::cout << std::endl;
 	std::cout << "\t\tUrl: " << this->mUrl << std::endl;
 	std::cout << "\t\tFragment: " << this->mQuery << std::endl;
 	std::cout << "\t\tHeader: {" << std::endl;

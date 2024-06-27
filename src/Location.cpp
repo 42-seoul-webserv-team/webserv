@@ -4,9 +4,9 @@
 Location::Location(void)
 {
 	this->mAutoindex = false;
-	this->mMethod.push_back("GET");
-	this->mMethod.push_back("POST");
-	this->mMethod.push_back("DELETE");
+	this->mMethod.push_back(GET);
+	this->mMethod.push_back(POST);
+	this->mMethod.push_back(DELETE);
 }
 
 Location::~Location(void)
@@ -40,14 +40,22 @@ std::string Location::getUpload(void)
 	return this->mUpload;
 }
 
-std::string Location::getCgi(std::string const & extension)
+std::string Location::getCGI(std::string const & url)
 {
+	if (url.empty())
+		return "";
+
+	size_t pos = url.rfind('.');
+	if (pos == std::string::npos)
+		return "";
+
+	std::string extension = url.substr(pos + 1);
 	return this->mCgi[extension];
 }
 
-bool Location::checkMethod(std::string const & reqMethod)
+bool Location::checkMethod(eMethod reqMethod)
 {
-	for (std::vector<std::string>::iterator it = this->mMethod.begin();
+	for (std::vector<eMethod>::iterator it = this->mMethod.begin();
 			it != this->mMethod.end(); it++)
 	{
 		if (*it == reqMethod)
@@ -76,9 +84,9 @@ void Location::setRoot(std::string const & rootpath)
 	this->mRoot = rootpath;
 }
 
-void Location::addMethod(std::string const & method)
+void Location::addMethod(eMethod method)
 {
-	for (std::vector<std::string>::iterator it = this->mMethod.begin();
+	for (std::vector<eMethod>::iterator it = this->mMethod.begin();
 			it != this->mMethod.end(); it++)
 	{
 		if (*it == method)
@@ -131,12 +139,7 @@ bool Location::checkCGI(std::string const & url)
 	if (url.empty())
 		return false;
 
-	size_t pos = url.rfind('.');
-	if (pos == std::string::npos)
-		return false;
-
-	std::string extension = url.substr(pos + 1);
-	if (this->getCgi(extension).empty())
+	if (this->getCGI(url).empty())
 		return false;
 
 	return true;
@@ -160,7 +163,21 @@ void Location::printAll(void)
 	std::cout << "\t\tRoot: " << this->mRoot << std::endl;
 	std::cout << "\t\tAllow Method: ";
 	for (size_t i = 0; i < this->mMethod.size(); i++)
-		std::cout << this->mMethod[i] << " ";
+	{
+		switch (this->mMethod[i]) {
+			case GET:
+				std::cout << "GET ";
+				break ;
+			case POST:
+				std::cout << "POST ";
+				break ;
+			case DELETE:
+				std::cout << "DELETE ";
+				break ;
+			default:
+				break ;
+		}
+	}
 	std::cout << std::endl;
 	std::cout << "\t\tRedirect: " << this->mRedirect << std::endl;
 	std::cout << "\t\tUpload path: " << this->mUpload << std::endl;

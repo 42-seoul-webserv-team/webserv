@@ -16,10 +16,15 @@ void WebServ::run(Connection * clt)
 	{
 		case GET:
 			runGET(clt);
+			break;
 		case POST:
 			runPOST(clt);
+			break;
 		case DELETE:
 			runDELETE(clt);
+			break;
+		default:
+			break; 
 	}
 	clt->changeStatus(COMPLETE);
 }
@@ -27,11 +32,11 @@ void WebServ::run(Connection * clt)
 void WebServ::runGET(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
-	if (procType == FILE)
+	if (procType == FILES)
 	{
 		clt->fillRequest();
 	}
-	else if (procType == AUTO_INDEX)
+	else if (procType == AUTOINDEX)
 	{
 		DIR * dir = opendir(clt->getAbsolutePath());
 		if (dir == NULL)
@@ -66,7 +71,7 @@ void WebServ::runGET(Connection * clt)
 void WebServ::runPOST(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
-	if (procType == FILE)
+	if (procType == FILES)
 	{
 		DIR * dir = opendir(clt->getAbsolutePath());
 		if (dir == NULL)
@@ -107,11 +112,11 @@ void WebServ::runPOST(Connection * clt)
 void WebServ::runDELETE(Connection * clt)
 {
 	eProcessType procType = clt->getProcType();
-	if (procType == FILE)
+	if (procType == FILES)
 	{
 		clt->removeFile();
 	}
-	else if (procType == AUTO_INDEX)
+	else if (procType == AUTOINDEX)
 	{
 		DIR * dir = opendir(clt->getAbsolutePath());
 		if (dir == NULL)
@@ -397,7 +402,7 @@ Server *WebServ::findServer(Connection *clt)
 void WebServ::closeConnection(Connection *clt)
 {
 	int socket = clt->getSocket();
-	clt->close();
+	clt->closeSocket();
 	std::vector<Connection>::iterator it = this->mConnection.begin();
 	while (it != this->mConnection.end())
 	{
@@ -460,8 +465,8 @@ void WebServ::activate(char *envp[])
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->printAll();
 				this->closeConnection(clt);
-				/*clt->access();
-				clt->writeResponse();
+				this->run(clt);
+				/*clt->writeResponse();
 				if (clt->checkComplete())
 				{
 					this->mSender.send(clt->getResponse());
@@ -533,25 +538,29 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			throw std::runtime_error("Redirection"); // redirectionException(lct->getRedirect());
 		else if (lct->checkIndexFile(url))
 		{
-			clt->setAbsoultePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
-			if (lct->checkCGI(clt->getAbsoultePath()))
+			clt->setAbsolutePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
+			if (lct->checkCGI(clt->getAbsolutePath()))
+			{
 				clt->setType(CGI);
+				clt->setCGI(lct->getCGI(clt->getAbsolutePath()));
+			}
 			else
 				clt->setType(FILES);
 		}
 		else if (lct->checkAutoindex())
 		{
-			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), "text/html");
+			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), "text/html");
 			clt->setType(AUTOINDEX);
 		}
 		else if (lct->checkCGI(clt->getUrl()))
 		{
-			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
 			clt->setType(CGI);
+			clt->setCGI(lct->getCGI(clt->getUrl()));
 		}
 		else
 		{
-			clt->setAbsoultePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
 			clt->setType(FILES);
 		}
 		clt->setStatus(HEADER);
@@ -559,10 +568,10 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 	if (clt->getStatus() == HEADER && clt->checkStatus())
 	{
-		std::string method = clt->getMethod();
-		if (method == "GET" || method == "DELETE")
+		eMethod  method = clt->getMethod();
+		if (method == GET || method == DELETE)
 			clt->setStatus(COMPLETE);
-		else if (method == "POST")
+		else if (method == POST)
 		{
 			if (clt->checkUpload())
 			{
@@ -573,8 +582,8 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 				if (!lct->getUpload().empty())
 				{
-					clt->setAbsoultePath(lct->getRoot(), lct->getUpload(), "text/html");
-					clt->setAbsoultePath(clt->getAbsoultePath(), clt->getUrl(), "text/html");
+					clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
+					clt->setAbsolutePath(clt->getAbsolutePath(), clt->getUrl(), "text/html");
 				}
 				clt->setType(UPLOAD);
 			}
@@ -841,7 +850,14 @@ void	WebServ::parseConfig(std::string & contents)
 		{
 			curLct->clearMethod();
 			for (size_t i = 1; i < line.size(); i++)
-				curLct->addMethod(line[i]);
+			{
+				if (line[i] == "GET")
+					curLct->addMethod(GET);
+				else if (line[i] == "POST")
+					curLct->addMethod(POST);
+				else if (line[i] == "DELETE")
+					curLct->addMethod(DELETE);
+			}
 		}
 		else if (line.front() == ROOT_PATH)
 			curLct->setRoot(line.back());
