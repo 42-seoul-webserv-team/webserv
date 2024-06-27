@@ -3,6 +3,7 @@
 
 # include <string>
 # include <map>
+# include "ConnectionException.hpp"
 # include "enum.hpp"
 # include "ft.hpp"
 # include "value.hpp"

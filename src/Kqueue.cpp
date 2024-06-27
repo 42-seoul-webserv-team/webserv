@@ -6,7 +6,7 @@ Kqueue::Kqueue(void)
 	this->mKqIdx = 0;
 	this->mKqFD = kqueue();
 	if (this->mKqFD == -1)
-		throw std::runtime_error("Kqueue fd failed!");
+		throw ManagerException("Kqueue fd failed!");
 }
 
 Kqueue::~Kqueue(void)
