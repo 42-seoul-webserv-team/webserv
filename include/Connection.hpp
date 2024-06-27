@@ -63,6 +63,7 @@ class Connection
 		void setUpload(void);
 		void setType(eProcessType type);
 		void setCGI(std::string const & cgi);
+		void setContentType(std::string const & type);
 
 		void readRequest(void);
 		void writeResponse(void);

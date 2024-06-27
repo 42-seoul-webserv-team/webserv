@@ -435,6 +435,11 @@ void Connection::setUpload(void)
 	}
 }
 
+void Connection::setContentType(std::string const & type)
+{
+	this->mResponse.setContentType(type);
+}
+
 eProcessType Connection::getType(void)
 {
 	return this->mProcType;

@@ -563,6 +563,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
 			clt->setType(FILES);
 		}
+		clt->setContentType(this->findMIMEType(clt->getAbsolutePath()));
 		clt->setStatus(HEADER);
 	}
 
