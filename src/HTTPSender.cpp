@@ -22,7 +22,7 @@ std::string	HTTPSender::getDate(void)
 
 std::string	HTTPSender::makeMessage(Response response)
 {
-	struct tm	*newtime;
+	//struct tm	*newtime;
 	std::string	message;
 
 	message.reserve(800);

@@ -16,6 +16,7 @@ TARGET = Location.cpp \
 	   ManagerException.cpp \
 	   ConnectionException.cpp \
 	   RedirectionException.cpp \
+	   HTTPSender.cpp \
 	   main.cpp
 SRC = $(TARGET:%=$(BUILD)/%) 
 OBJ = $(SRC:.cpp=.o)

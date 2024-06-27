@@ -3,7 +3,6 @@
 #define __CONNECTINO_EXCEPTION_H__
 
 #include "enum.hpp"
-#include "WebServ.hpp"
 
 #include <string>
 #include <stdexcept>
@@ -12,7 +11,7 @@ class ConnectionException : public std::logic_error
 {
 public:
 	ConnectionException(std::string const & errorMsg, eHTTPStatus const errorCode);
-	~ConnectionException();
+	~ConnectionException() throw();
 	eHTTPStatus getErrorCode(void) const;
 private:
 	eHTTPStatus mErrorCode;

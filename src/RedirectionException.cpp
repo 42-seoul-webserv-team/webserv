@@ -8,7 +8,7 @@ RedirectionException::RedirectionException(std::string const redirLoc, std::stri
 	, mServerName(serverName)
 {}
 
-RedirectionException::~RedirectionException()
+RedirectionException::~RedirectionException() throw()
 {}
 
 std::string RedirectionException::getRedirLoc(void) const

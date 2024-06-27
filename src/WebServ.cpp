@@ -485,8 +485,8 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->printAll();
-				this->closeConnection(clt);
 				this->run(clt);
+				this->closeConnection(clt);
 				/*clt->writeResponse();
 				if (clt->checkComplete())
 				{
@@ -520,8 +520,9 @@ void WebServ::activate()
 			{
 				// juhyelee - Send Error Page
 				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
+				//std::cout << "Here?" << std::endl;
 				HTTPSender sender;
-				sender.sendMessage(clt->getSocket, errorResponse);
+				sender.sendMessage(clt->getSocket(), errorResponse);
 				this->closeConnection(clt);
 				this->mLogger.putAccess("close connection");
 			}
@@ -533,7 +534,7 @@ void WebServ::activate()
 			if (clt != NULL)
 			{
 				HTTPSender sender;
-				sender.sendMessage(clt->getSocket, e.getRedirLoc(), e.getServerName());
+				sender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->closeConnection(clt);
 				this->mLogger.putAccess("redirection");
 				this->mLogger.putAccess("close connection");

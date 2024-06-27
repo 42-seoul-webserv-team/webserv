@@ -26,6 +26,7 @@
 # include "ConnectionException.hpp"
 # include "RedirectionException.hpp"
 
+class Connection;
 class WebServ {
 	private:
 		std::vector<Server> mServers;

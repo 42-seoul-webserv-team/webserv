@@ -1,6 +1,5 @@
 #include "ConnectionException.hpp"
 #include "enum.hpp"
-#include "WebServ.hpp"
 
 #include <string>
 #include <stdexcept>
@@ -10,7 +9,7 @@ ConnectionException::ConnectionException(std::string const & errorMsg, eHTTPStat
 	, mErrorCode(errorCode)
 {}
 
-ConnectionException::~ConnectionException()
+ConnectionException::~ConnectionException() throw()
 {}
 
 eHTTPStatus ConnectionException::getErrorCode(void) const

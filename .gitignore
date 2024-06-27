@@ -1,1 +1,5 @@
 .vscode
+tester
+cgi_tester
+*.log
+*.html

@@ -9,7 +9,7 @@ class ManagerException : public std::runtime_error
 {
 public:
 	ManagerException(std::string const errorMsg);
-	~ManagerException();
+	~ManagerException() throw();
 };
 
 #endif

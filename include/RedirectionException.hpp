@@ -9,7 +9,7 @@ class RedirectionException : public std::domain_error
 {
 public :
 	RedirectionException(std::string const redirLoc, std::string const serverName);
-	~RedirectionException();
+	~RedirectionException() throw();
 	std::string getRedirLoc(void) const;
 	std::string getServerName(void) const;
 private:
