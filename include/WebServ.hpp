@@ -35,7 +35,7 @@ class WebServ {
 		std::map<std::string, std::string> mMIMEType;
 		std::vector<Connection> mConnection;
 		Kqueue mKqueue;
-		//HTTPSender mSender;
+		HTTPSender mSender;
 		Logger mLogger;
 
 		void validConfig(std::string contents);

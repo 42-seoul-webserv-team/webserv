@@ -33,6 +33,11 @@ std::string Connection::getReqBody(void) const
 	return this->mRequest.getBody();
 }
 
+Response Connection::getResponse(void) const
+{
+	return this->mResponse;
+}
+
 char * Connection::getAbsolutePath(void) const
 {
 	return (char *)this->mAbsolutePath.c_str();

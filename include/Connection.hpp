@@ -85,6 +85,7 @@ class Connection
 		int getCGIproc(void) const;
 		std::string getContentType(void);
 		std::string getReqBody(void) const;
+		Response getResponse(void) const;
 		char * getAbsolutePath(void) const;
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);

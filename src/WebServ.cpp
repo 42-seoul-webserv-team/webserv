@@ -54,6 +54,10 @@ void WebServ::runGET(Connection * clt)
 	{
 		clt->processCGI(this->mKqueue, this->mEnvp);
 	}
+	else if (procType == UPLOAD)
+	{
+		throw ConnectionException("Unrecognize syntax", BAD_REQUEST);
+	}
 }
 
 void WebServ::runPOST(Connection * clt)
@@ -83,6 +87,10 @@ void WebServ::runPOST(Connection * clt)
 	else if (procType == CGI)
 	{
 		clt->processCGI(this->mKqueue, this->mEnvp);
+	}
+	else if (procType == UPLOAD)
+	{
+		// upload
 	}
 }
 
@@ -117,6 +125,10 @@ void WebServ::runDELETE(Connection * clt)
 	else if (procType == CGI)
 	{
 		clt->processCGI(this->mKqueue, this->mEnvp);
+	}
+	else if (procType == UPLOAD)
+	{
+		throw ConnectionException("Unrecognize syntax", BAD_REQUEST);
 	}
 }
 
@@ -392,9 +404,10 @@ void WebServ::closeConnection(Connection *clt)
 		if (it->getSocket() == socket)
 		{
 			this->mConnection.erase(it);
-			return ;
+			break;
 		}
 	}
+	this->mLogger.putAccess("close connection");
 }
 
 void WebServ::activate()
@@ -465,14 +478,12 @@ void WebServ::activate()
 				else
 					this->run(clt);
 				clt->printAll();
-				this->closeConnection(clt);
-				/*
 				if (clt->checkComplete())
 				{
-					this->mSender.send(clt->getResponse());
-					this->mLogger.putAccess("");
+					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
+					this->mLogger.putAccess("send response");
 					this->closeConnection(clt);
-				}*/
+				}
 			}
 		} 
 		/*
@@ -495,15 +506,15 @@ void WebServ::activate()
 		{
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata); // juhyelee - for send error page
+			svr = findServer(clt);
 			if (clt != NULL)
 			{
 				// juhyelee - Send Error Page
 				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
-				//std::cout << "Here?" << std::endl;
-				HTTPSender sender;
-				sender.sendMessage(clt->getSocket(), errorResponse);
+				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->closeConnection(clt);
 				this->mLogger.putAccess("close connection");
+				clt->printAll();
 			}
 		}
 		catch (RedirectionException & e) // juhyelee - Send redirection
@@ -512,11 +523,11 @@ void WebServ::activate()
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			if (clt != NULL)
 			{
-				HTTPSender sender;
-				sender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
+				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->closeConnection(clt);
 				this->mLogger.putAccess("redirection");
 				this->mLogger.putAccess("close connection");
+				clt->printAll();
 			}
 		}
 		catch(ManagerException & e)
@@ -526,6 +537,7 @@ void WebServ::activate()
 			if (clt != NULL)
 			{
 				this->closeConnection(clt);
+				clt->printAll();
 			}
 		}
 	}
