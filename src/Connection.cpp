@@ -487,6 +487,8 @@ void Connection::printAll(void)
 	std::cout << "\tSocket: " << this->mSocket << std::endl;
 	std::cout << "\tConnected Port: " << this->mServerPort << std::endl;
 	std::cout << "\tAbsolute Path: " << this->mAbsolutePath << std::endl;
+	if (this->mProcType == CGI)
+		std::cout << "\tCGI: " << this->mCGI << std::endl;
 	std::cout << "\tRun Type: ";
 	switch (this->mProcType) {
 		case NONE:
