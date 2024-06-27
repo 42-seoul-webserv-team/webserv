@@ -130,6 +130,8 @@ Response Server::getErrorPage(int errcode, std::string const & errmsg)
 	std::string body;
 	Response errorPage;
 	errorPage.setServerName(this->mServerName);
+	errorPage.setCode(errcode);
+	errorPage.setStatusMsg(errmsg);
 
 	try {
 		if (this->mErrorPage.empty())

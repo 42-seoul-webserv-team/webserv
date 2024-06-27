@@ -3,25 +3,16 @@
 
 # include <string>
 # include <map>
+# include "enum.hpp"
 # include "ft.hpp"
-
-# define HEADER_LENGTH_MAX 1000000
-# define URL_LENGTH_MAX 1000000
-
-// enum eStatus enum.hpp에 있음
-// {
-// 	STARTLINE,
-// 	HEADER,
-// 	BODY,
-// 	COMPLETE,
-// };
+# include "value.hpp"
 
 class Request
 {
 	private:
 
 		eStatus mReadStatus;
-		std::string mMethod;
+		eMethod mMethod;
 		std::string mUrl;
 		std::string mQuery;
 		std::string mBody;
@@ -40,11 +31,9 @@ class Request
 		Request(void);
 		~Request(void);
 
-		std::string getMethod(void) const;
+		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;
-		std::string getBody(void) const;
-		std::string getContentType(void) const;
 		std::string getBody(void) const;
 
 		std::string findHeader(std::string const & key);

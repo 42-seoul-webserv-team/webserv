@@ -4,7 +4,6 @@ Response::Response(void)
 {
 	this->mCode = "200";
 	this->mStatusMsg = "OK";
-	this->mConnectionHeader = false;
 }
 
 Response::~Response(void)
@@ -22,11 +21,6 @@ std::string Response::getStatusMsg(void)
 	return this->mStatusMsg;
 }
 
-bool Response::getConnectionHeader(void)
-{
-	return this->mConnectionHeader;
-}
-
 std::string Response::getContentType(void)
 {
 	return this->mContentType;
@@ -35,11 +29,6 @@ std::string Response::getContentType(void)
 std::string Response::getContentLength(void)
 {
 	return this->mContentLength;
-}
-
-std::string Response::getRedirection(void)
-{
-	return this->mRedirection;
 }
 
 std::string Response::getServerName(void)
@@ -62,19 +51,9 @@ void Response::setStatusMsg(std::string const & msg)
 	this->mStatusMsg = msg;
 }
 
-void Response::setConnectionHeader(void)
-{
-	this->mConnectionHeader = true;
-}
-
 void Response::setContentType(std::string const & type)
 {
 	this->mContentType = type;
-}
-
-void Response::setRedirection(std::string const & path)
-{
-	this->mRedirection = path;
 }
 
 void Response::setServerName(std::string const & server)
@@ -86,4 +65,17 @@ void Response::setBody(std::string const & body)
 {
 	this->mContentLength = ft::toString(body.size(), 10);
 	this->mBody = body;
+}
+
+# include <iostream>
+
+void Response::printAll(void)
+{
+	std::cout << "\t* Print Response!" << std::endl;
+	std::cout << "\t\tCode: " << this->mCode << std::endl;
+	std::cout << "\t\tStatus Msg: " << this->mStatusMsg << std::endl;
+	std::cout << "\t\tServer Name: " << this->mServerName << std::endl;
+	std::cout << "\t\tContent-Type: " << this->mContentType << std::endl;
+	std::cout << "\t\tContent-Length: " << this->mContentLength << std::endl;
+	std::cout << "\t\tBody: " << this->mBody << std::endl;
 }

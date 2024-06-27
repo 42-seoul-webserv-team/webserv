@@ -3,7 +3,7 @@
 
 enum eStatus
 {
-	READY, STARTLINE, HEADER, BODY, PROC_CGI, COMPLETE
+	STARTLINE, HEADER, BODY, PROC_CGI, COMPLETE
 };
 
 enum eMethod
@@ -13,12 +13,28 @@ enum eMethod
 
 enum eProcessType
 {
-	FILE, AUTO_INDEX, CGI
+	NONE, FILES, AUTOINDEX, CGI, UPLOAD
 };
 
-enum eRunType
+enum eOpenFail
 {
-	NONE, FILES, AUTOINDEX, CGI, UPLOAD
+	NOT, ACCESS, ERROR,	BOTH
+};
+
+// juhyelee - for Connection Exception
+enum eHTTPStatus
+{
+	OK = 200,
+	CREATE = 201,
+	PERMANENT_REDIRECT = 308,
+	BAD_REQUEST = 400,
+	FORBIDDEN = 403,
+	NOT_FOUND = 404,
+	MATHOD_NOT_ALLOWED = 405,
+	REQUEST_TIMEOUT = 408,
+	INTERAL_SERVER_ERROR = 500,
+	BAD_GATEWAY = 502,
+	GATEWAY_TIMEOUT = 504
 };
 
 #endif

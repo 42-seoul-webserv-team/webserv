@@ -19,10 +19,12 @@ int main(int argc, char *argv[], char *envp[])
 		else
 			manager.configure(argv[1]);
 
-		while (gSignal)
-			manager.activate(envp);
+		manager.setEnv(envp);
 
-	} catch (std::exception &e) {
+		while (gSignal)
+			manager.activate();
+
+	} catch (ManagerException &e) {
 		std::cerr << "Error: " << e.what() << std::endl;
 	}
 	return 0;

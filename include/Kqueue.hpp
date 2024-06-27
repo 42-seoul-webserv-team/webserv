@@ -4,8 +4,7 @@
 # include <sys/event.h>
 # include <unistd.h>
 # include <vector>
-
-# define EVENT_MAX 20
+# include "value.hpp"
 
 class Kqueue
 {

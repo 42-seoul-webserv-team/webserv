@@ -9,10 +9,8 @@ class Response
 	private:
 		std::string mCode;
 		std::string mStatusMsg;
-		bool mConnectionHeader;
 		std::string mContentType;
 		std::string mContentLength;
-		std::string mRedirection;
 		std::string mServerName;
 		std::string mBody;
 
@@ -21,20 +19,18 @@ class Response
 		~Response(void);
 		std::string getCode(void);
 		std::string getStatusMsg(void);
-		bool getConnectionHeader(void);
 		std::string getContentType(void);
 		std::string getContentLength(void);
-		std::string getRedirection(void);
 		std::string getServerName(void);
 		std::string getBody(void);
 
 		void setCode(unsigned int code);
 		void setStatusMsg(std::string const & msg);
-		void setConnectionHeader(void);
 		void setContentType(std::string const & type);
-		void setRedirection(std::string const & path);
 		void setServerName(std::string const & server);
 		void setBody(std::string const & body);
+
+		void printAll(void);
 };
 
 #endif

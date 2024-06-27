@@ -23,9 +23,9 @@ eProcessType Connection::getProcType(void) const
 	return this->mProcType;
 }
 
-std::string Connection::getContentType(void) const
+std::string Connection::getContentType(void)
 {
-	return this->mRequest.getContentType();
+	return this->mRequest.findHeader("Content-Type");
 }
 
 std::string Connection::getReqBody(void) const
@@ -35,12 +35,12 @@ std::string Connection::getReqBody(void) const
 
 char * Connection::getAbsolutePath(void) const
 {
-	return (char *)(this->mAbsolutePath.c_str());
+	return (char *)this->mAbsolutePath.c_str();
 }
 
-void Connection::changeStatus(eStatus const status)
+int Connection::getCGIproc(void) const
 {
-	this->mStatus = status;
+	return this->mCGIproc;
 }
 
 void Connection::fillRequest(void)
@@ -49,7 +49,7 @@ void Connection::fillRequest(void)
 	file.open(this->mAbsolutePath.c_str());
 	if (!file.is_open())
 	{
-		throw std::exception(); // 404
+		throw ConnectionException("Not exist file", NOT_FOUND);
 	}
 
 	std::string body = "";
@@ -95,12 +95,12 @@ void Connection::removeFile(void) const
 	int toCheck = open(fileName, O_RDONLY);
 	if (toCheck < 0)
 	{
-		throw std::exception(); // 404
+		throw ConnectionException("Not exist file", NOT_FOUND);
 	}
 	close(toCheck);
 	if (std::remove(fileName) < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to remove file", INTERAL_SERVER_ERROR);
 	}
 }
 
@@ -108,7 +108,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 {
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
 	fcntl(this->mCGIfd[0], O_NONBLOCK);
 	fcntl(this->mCGIfd[1], O_NONBLOCK);
@@ -116,7 +116,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
 	{
-		throw std::exception(); // 500
+		throw ConnectionException("Fail to create CGI process", INTERAL_SERVER_ERROR);
 	}
 	else if (this->mCGIproc == 0)
 	{
@@ -124,8 +124,8 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
 		char ** CGIenvp = convert(envp);
-		char *argv[] = {
-			"/User/juhyelee/cgi_tester",
+		char * argv[] = {
+			const_cast<char *>(this->mCGI.c_str()),
 			NULL
 		};
 		execve(argv[0], argv, CGIenvp);
@@ -159,11 +159,15 @@ static char ** convert(std::map<std::string, std::string> env)
 	return ret;
 }
 
-bool Connection::isTimeOver(void) const
+void Connection::isTimeOver(void) const
 {
 	clock_t currTime = clock();
 	double runtime = static_cast<double>(currTime - this->mCGIstart) / CLOCKS_PER_SEC;
-	return (runtime >= 1);
+	if (runtime >= 1)
+	{
+		kill(this->getCGIproc(), SIGKILL);
+		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT); // connectionException(504);
+	}
 }
 
 // 1.0 merge
@@ -174,8 +178,8 @@ Connection::Connection(void)
 	this->mSocket = -1;
 	this->mServerPort = -1;
 	this->mServer = nullptr;
-	this->mValidStatus = STARTLINE;
-	this->mType = NONE;
+	this->mStatus = STARTLINE;
+	this->mProcType = NONE;
 	this->renewTime();
 }
 
@@ -184,8 +188,8 @@ Connection::Connection(int socket, int svr_port)
 	this->mSocket = socket;
 	this->mServerPort = svr_port;
 	this->mServer = nullptr;
-	this->mValidStatus = STARTLINE;
-	this->mType = NONE;
+	this->mStatus = STARTLINE;
+	this->mProcType = NONE;
 	this->renewTime();
 }
 
@@ -223,6 +227,8 @@ void Connection::setServer(Server *svr)
 {
 	if (svr == nullptr)
 		return ;
+	
+	this->mResponse.setServerName(svr->getServerName());
 	this->mServer = svr;
 }
 
@@ -239,7 +245,7 @@ void Connection::readRequest(void)
     	this->mRequest.set(this->mRemainStr);
 		this->mRemainStr.clear();
 		if (!this->mRequest.checkBodyComplete())
-			throw std::runtime_error("Request message not enough"); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
 		return ;
   	}
 
@@ -267,7 +273,7 @@ void Connection::readRequest(void)
 			this->mRequest.set(read_str);
 
 		if (!this->mRequest.checkBodyComplete())
-			throw std::runtime_error("Request message not enough"); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
 	}
 	else
 		this->mRemainStr = read_str;
@@ -279,27 +285,22 @@ void Connection::writeResponse(void)
 
 }
 
-void Connection::closeSock(void)
+void Connection::closeSocket(void)
 {
 	if (this->mSocket != -1)
 		::close(this->mSocket);
 }
-/*
-void Connection::access(void)
-{
 
-}
-*/
-bool Connection::checkMethod(std::string const & method)
+bool Connection::checkMethod(eMethod method)
 {
 	return this->mRequest.getMethod() == method;
 }
-/*
-bool Connection::checkCompelte(void)
-{
 
+bool Connection::checkComplete(void)
+{
+	return this->mStatus == COMPLETE && this->mRequest.getStatus() == COMPLETE;
 }
-*/
+
 bool Connection::checkOvertime(void)
 {
 	struct timeval now;
@@ -311,7 +312,7 @@ bool Connection::checkOvertime(void)
 
 bool Connection::checkStatus(void)
 {
-	return this->mValidStatus < this->mRequest.getStatus();
+	return this->mStatus < this->mRequest.getStatus();
 }
 
 bool Connection::checkUpload(void)
@@ -335,22 +336,17 @@ std::string Connection::getUrl(void)
 	return this->mRequest.getUrl();
 }
 
-std::string Connection::getMethod(void)
+eMethod Connection::getMethod(void)
 {
 	return this->mRequest.getMethod();
 }
 
-std::string Connection::getAbsoultePath(void)
-{
-	return this->mAbsolutePath;
-}
-
 void Connection::setStatus(eStatus status)
 {
-	this->mValidStatus = status;
+	this->mStatus = status;
 }
 
-void Connection::setAbsoultePath(std::string const & root, std::string const & url, std::string const & type)
+void Connection::setAbsolutePath(std::string const & root, std::string const & url, std::string const & type)
 {
 	std::string path = root;
 
@@ -371,31 +367,31 @@ void Connection::setUpload(void)
 	std::string type = this->mRequest.findHeader("Content-Type");
 	size_t pos = type.find(';');
 	if (pos == std::string::npos)
-		throw std::runtime_error("Cannot find multipart/form-data");
+		throw ConnectionException("Cannot find multipart/form-data", BAD_REQUEST);
 
 	std::string boundary = type.substr(pos + 1);
 	pos = boundary.find('=');
 	if (pos == std::string::npos)
-		throw std::runtime_error("Boundary not matched format");
+		throw ConnectionException("Boundary not matched format", BAD_REQUEST);
 	
 	std::string start = "--" + boundary.substr(pos + 1);
 	std::string end = start + "--";
 
 	boundary.erase(pos);
 	if (ft::trim(boundary) != "boundary")
-		throw std::runtime_error("Boundary not match format");
+		throw ConnectionException("Boundary not match format", BAD_REQUEST);
 
 	std::string body = this->mRequest.getBody();
 	if (body.empty())
-		throw std::runtime_error("Upload Body empty");
+		throw ConnectionException("Upload Body empty", BAD_REQUEST);
 
 		
 	pos = body.find("\r\n");
 	if (pos == std::string::npos)
-		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	std::string line = body.substr(0, pos);
 	if (line != start)
-		throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	
 	bool flag = true;	
 	while (!body.empty())
@@ -406,7 +402,7 @@ void Connection::setUpload(void)
 			if (body == end && flag == true)
 				break ;
 			else
-				throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+				throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 		}
 		else
 		{
@@ -431,23 +427,33 @@ void Connection::setUpload(void)
 		else if (flag == true)
 			this->mUpload.back().back() += line + "\r\n";
 		else
-			throw std::runtime_error("Upload Body not match format"); // connectionException(400);
+			throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
 	}
 }
 
-eRunType Connection::getType(void)
+void Connection::setContentType(std::string const & type)
 {
-	return this->mType;
+	this->mResponse.setContentType(type);
 }
 
-void Connection::setType(eRunType type)
+eProcessType Connection::getType(void)
 {
-	this->mType = type;
+	return this->mProcType;
+}
+
+void Connection::setType(eProcessType type)
+{
+	this->mProcType = type;
 }
 
 eStatus Connection::getStatus(void)
 {
-	return this->mValidStatus;
+	return this->mStatus;
+}
+
+void Connection::setCGI(std::string const & cgi)
+{
+	this->mCGI = cgi;
 }
 
 # include <iostream>
@@ -456,7 +462,7 @@ void Connection::printAll(void)
 {
 	std::cout << "* Print Connection!" << std::endl;
 	std::cout << "\tStatus: ";
-	switch (this->mValidStatus) {
+	switch (this->mStatus) {
 		case STARTLINE:
 			std::cout << "STARTLINE";
 			break ;
@@ -466,6 +472,9 @@ void Connection::printAll(void)
 		case BODY:
 			std::cout << "BODY";
 			break ;
+		case PROC_CGI:
+			std::cout << "PROC_CGI";
+			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";
 			break ;
@@ -474,8 +483,10 @@ void Connection::printAll(void)
 	std::cout << "\tSocket: " << this->mSocket << std::endl;
 	std::cout << "\tConnected Port: " << this->mServerPort << std::endl;
 	std::cout << "\tAbsolute Path: " << this->mAbsolutePath << std::endl;
+	if (this->mProcType == CGI)
+		std::cout << "\tCGI: " << this->mCGI << std::endl;
 	std::cout << "\tRun Type: ";
-	switch (this->mType) {
+	switch (this->mProcType) {
 		case NONE:
 			std::cout << "NONE" << std::endl;
 			break ;
@@ -506,6 +517,7 @@ void Connection::printAll(void)
 		std::cout << "\t}" << std::endl;
 	}
 	this->mRequest.printAll();
+	this->mResponse.printAll();
 	std::cout << std::endl;
 }
 

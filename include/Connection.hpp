@@ -3,6 +3,8 @@
 
 # include <sys/time.h>
 # include <unistd.h>
+# include <vector>
+# include <signal.h>
 
 # include "Server.hpp"
 # include "Request.hpp"
@@ -10,16 +12,10 @@
 # include "ft.hpp"
 # include "enum.hpp"
 # include "Kqueue.hpp"
+# include "value.hpp"
 
-# define CRLF "\r\n"
-# define BUFFER_SIZE 4096
-# define OVERTIME 15 
-
-enum eValidStatus
-{
-	READY,
-	METHOD,
-};
+// juhyelee - ConnectionException
+# include "ConnectionException.hpp"
 
 class Connection
 {
@@ -30,10 +26,8 @@ class Connection
 		Request mRequest;
 		Response mResponse;
 		std::string  mAbsolutePath;
-		eStatus mValidStatus;
 
 		std::vector<std::vector <std::string> > mUpload; // 1.0 merge 모름
-		eRunType mType; // 1.0 merge 모름
 
 		std::string mRemainStr;
 		struct timeval mTime;
@@ -43,6 +37,9 @@ class Connection
 		//juhyelee - need for run
 		eStatus mStatus;
 		eProcessType mProcType;
+		
+		std::string mCGI;
+
 		int mCGIfd[2];
 		int mCGIproc;
 		clock_t mCGIstart;
@@ -59,25 +56,24 @@ class Connection
 
 		std::string getHost(void);
 		std::string getUrl(void);
-		std::string getMethod(void);
-		std::string getAbsoultePath(void);
-		eRunType getType(void);
+		eMethod getMethod(void);
+		eProcessType getType(void);
 
 		void setServer(Server *svr);
 		void setStatus(eStatus status);
-		void setAbsoultePath(std::string const & root, std::string const & url, std::string const & type);
+		void setAbsolutePath(std::string const & root, std::string const & url, std::string const & type);
 		void setUpload(void);
-		void setType(eRunType type);
+		void setType(eProcessType type);
+		void setCGI(std::string const & cgi);
+		void setContentType(std::string const & type);
 
 		void readRequest(void);
 		void writeResponse(void);
-		// void close(void); // delete 1.0 merge
-		void closeSock(void); // juhyelee - need for run because real close(fd)
-//		void access(void);
+		void closeSocket(void); // juhyelee - need for run because real close(fd)
 
 		bool checkUpload(void);
-		bool checkMethod(std::string const & method);
-//		bool checkComplete(void);
+		bool checkMethod(eMethod method);
+		bool checkComplete(void);
 		bool checkOvertime(void);
 		bool checkStatus(void);
 
@@ -87,16 +83,15 @@ class Connection
 		eProcessType getProcType(void) const;
 		eStatus getStatus(void) const;
 		int getCGIproc(void) const;
-		std::string getContentType(void) const;
+		std::string getContentType(void);
 		std::string getReqBody(void) const;
 		char * getAbsolutePath(void) const;
-		void changeStatus(eStatus const status);
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
 		void fillRequestCGI(void);
 		void removeFile(void) const;
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
-		bool isTimeOver(void) const;
+		void isTimeOver(void) const;
 		// add 1.0 merge
 
 		void printAll(void);

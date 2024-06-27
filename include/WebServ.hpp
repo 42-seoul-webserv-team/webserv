@@ -10,21 +10,23 @@
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <fcntl.h>
+# include <dirent.h>
 # include "ft.hpp"
 # include "Configure.hpp"
 # include "Server.hpp"
 # include "Connection.hpp"
 # include "Kqueue.hpp"
-//# include "HTTPSender.hpp"
+# include "HTTPSender.hpp" // juhyelee - for send error page
 # include "Logger.hpp"
 # include "Message.hpp"
+# include "value.hpp"
 
-# define DEFAULT_CONFIG "conf/default.conf"
-# define PORT_MIN 1024
-# define PORT_MAX 49151
-# define LISTEN_MAX 10
+// juhyelee - Exception
+# include "ManagerExcption.hpp"
+# include "ConnectionException.hpp"
+# include "RedirectionException.hpp"
 
-
+class Connection;
 class WebServ {
 	private:
 		std::vector<Server> mServers;
@@ -56,7 +58,7 @@ class WebServ {
 		~WebServ(void);
 
 		void configure(std::string const & config);
-		void activate(char *envp[]);
+		void activate();
 
 		void printAll(void);
 		// juhyelee - run
@@ -64,8 +66,8 @@ class WebServ {
 		void runGET(Connection * clt);
 		void runPOST(Connection * clt);
 		void runDELETE(Connection * clt);
-		static void getFileList(std::vector<std::string> & list, DIR * dir);
-		static void setEnv(char * envp[]);
+		void getFileList(std::vector<std::string> & list, DIR * dir);
+		void setEnv(char **&envp);
 };
 
 #endif
