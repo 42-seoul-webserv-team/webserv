@@ -17,7 +17,8 @@
 // Connection
 # define CRLF "\r\n"
 # define BUFFER_SIZE 4096
-# define OVERTIME 15 
+# define CGI_OVERTIME 1
+# define REQ_OVERTIME 10 
 
 // Logger
 # define DEFAULT_ACCESS_LOG "access.log"

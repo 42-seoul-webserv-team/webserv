@@ -42,7 +42,7 @@ class Connection
 
 		int mCGIfd[2];
 		int mCGIproc;
-		clock_t mCGIstart;
+		struct timeval mCGIstart;
 
 	public:
 		Connection(void);
@@ -93,6 +93,7 @@ class Connection
 		void removeFile(void) const;
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void isTimeOver(void) const;
+		void uploadFiles(void);
 		// add 1.0 merge
 
 		void printAll(void);

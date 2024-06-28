@@ -76,6 +76,8 @@ std::string ft::toString(ssize_t nbr, int unit)
 		sign = "-";
 		minus = -1;
 	}
+	if (nbr == 0)
+		return "0";
 	while (nbr)
 	{
 		ret.insert(ret.begin(), form[nbr % unit * minus]);

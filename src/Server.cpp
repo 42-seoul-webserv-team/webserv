@@ -10,6 +10,10 @@ Server::Server(void)
 
 Server::~Server(void)
 {
+	this->mHost.clear();
+	this->mServerName.clear();
+	this->mErrorPage.clear();
+	this->mErrorPageType.clear();
 	this->mLocation.clear();
 }
 

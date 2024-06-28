@@ -65,24 +65,7 @@ void WebServ::runPOST(Connection * clt)
 	eProcessType procType = clt->getProcType();
 	if (procType == FILES)
 	{
-		DIR * dir = opendir(clt->getAbsolutePath());
-		if (dir == NULL)
-		{
-			throw ConnectionException("Not exist file", NOT_FOUND); // 404
-		}
-		closedir(dir);
-
-		std::string fileName = clt->getAbsolutePath();
-		fileName += ".";
-		fileName += clt->getContentType(); // 확장자
-		std::ofstream file;
-		file.open(fileName.c_str());
-		if (!file.is_open())
-		{
-			throw ConnectionException("Fail to open", INTERAL_SERVER_ERROR); // 500
-		}
-		file << clt->getReqBody();
-		file.close();
+		throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
 	}
 	else if (procType == AUTOINDEX)
 	{
@@ -94,7 +77,7 @@ void WebServ::runPOST(Connection * clt)
 	}
 	else if (procType == UPLOAD)
 	{
-		// upload
+		clt->uploadFiles();
 	}
 }
 
@@ -173,6 +156,7 @@ WebServ::~WebServ(void)
 	this->mServers.clear();
 	this->mPortGroup.clear();
 	this->mResponseCodeMSG.clear();
+	this->mConnection.clear();
 	this->mMIMEType.clear();
 }
 
@@ -423,7 +407,6 @@ void WebServ::activate()
 
 	while (true)
 	{
-		// juhyelee - for send Error page
 		Server *svr = NULL;
 
 		struct kevent *curEvent = this->mKqueue.getEvent();
@@ -438,7 +421,7 @@ void WebServ::activate()
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				this->mLogger.putAccess("connect connection");
-				svr = this->findServer(curEvent->ident); // juhyelee - for send Error page
+				svr = this->findServer(curEvent->ident); 
 				if (svr == nullptr)
 					throw ManagerException("Cannot find Server");
 				int clt_socket = accept(svr->getSocket(), NULL, NULL);
@@ -490,48 +473,32 @@ void WebServ::activate()
 				}
 			}
 		} 
-		/*
-		catch (redirectionException & e)
-		{
-			this->mSender.send();
-			this->closeConnection(curEvent->udata);
-			this->mLogger.putAccess("");
-		}
-		catch (connectionException & e)
-		{
-			Server *svr = this->findServer(curEvent->udata);
-			this->mSender.send(svr->getErrorPage(e.getCode(), this->mResponseCodeMSG[e.getCode()]));
-			this->mLogger.putError("");
-			this->closeConnection(curEvent->udata);
-			this->mLogger.putAccess("");
-		}
-		*/
 		catch (ConnectionException & e)
 		{
 			this->mLogger.putError(e.what());
-			Connection *clt = static_cast<Connection *>(curEvent->udata); // juhyelee - for send error page
+			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			svr = findServer(clt);
-			if (clt != NULL)
+			std::cout << svr->getServerName() << std::endl;
+			if (svr != NULL)
 			{
 				// juhyelee - Send Error Page
 				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
-				this->closeConnection(clt);
-				this->mLogger.putAccess("close connection");
+				this->mLogger.putAccess("send response");
 				clt->printAll();
+				this->closeConnection(clt);
 			}
 		}
-		catch (RedirectionException & e) // juhyelee - Send redirection
+		catch (RedirectionException & e)
 		{
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			if (clt != NULL)
 			{
 				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
-				this->closeConnection(clt);
-				this->mLogger.putAccess("redirection");
-				this->mLogger.putAccess("close connection");
+				this->mLogger.putAccess("send response");
 				clt->printAll();
+				this->closeConnection(clt);
 			}
 		}
 		catch(ManagerException & e)
@@ -540,26 +507,27 @@ void WebServ::activate()
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			if (clt != NULL)
 			{
-				this->closeConnection(clt);
 				clt->printAll();
+				this->closeConnection(clt);
 			}
 		}
 	}
 
-	/*std::vector<Connection>::iterator it = this->mConnection.begin();
+
+	std::vector<Connection>::iterator it = this->mConnection.begin();
 	while (it != this->mConnection.end())
 	{
 		if (it->checkOvertime())
 		{
-			Server *svr = this->findServer(curEvent->udata);
-			this->mSender.send(svr->getErrorPage(408, this->mResponseCodeMSG[408]));
-			this->mLogger.putAccess();
-			it->close();
+			Server *svr = this->findServer(&*it);
+			this->mSender.sendMessage(it->getSocket(), svr->getErrorPage(408, this->mResponseCodeMSG[408]));
+			this->mLogger.putAccess("close connection");
+			it->closeSocket();
 			it = this->mConnection.erase(it);
 		}
 		else
 			it++;
-	}*/
+	}
 }
 
 void WebServ::parseRequest(Connection *clt, Server *svr)
@@ -572,13 +540,13 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		std::vector<std::string> url = this->parseUrl(clt->getUrl());
 		Location *lct = svr->findLocation(url);
 		if (lct == nullptr)
-			throw ConnectionException("Can't find Location", NOT_FOUND); // connectionException(404);
+			throw ConnectionException("Can't find Location", NOT_FOUND);
 
 		if (!lct->checkMethod(clt->getMethod()))
-			throw ConnectionException("Not allowed Method", MATHOD_NOT_ALLOWED); // connectionException(405);
+			throw ConnectionException("Not allowed Method", MATHOD_NOT_ALLOWED);
 
 		if (!lct->getRedirect().empty())
-			throw RedirectionException(lct->getRedirect(), svr->getServerName()); // redirectionException(lct->getRedirect());
+			throw RedirectionException(lct->getRedirect(), svr->getServerName());
 		else if (lct->checkIndexFile(url))
 		{
 			clt->setAbsolutePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
@@ -593,6 +561,10 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		else if (lct->checkAutoindex())
 		{
 			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), "text/html");
+			std::string type = this->findMIMEType(clt->getUrl());
+			if (type != "application/octet-stream")
+				clt->setContentType(type);
+
 			clt->setType(AUTOINDEX);
 		}
 		else if (lct->checkCGI(clt->getUrl()))
@@ -606,7 +578,6 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
 			clt->setType(FILES);
 		}
-		clt->setContentType(this->findMIMEType(clt->getAbsolutePath()));
 		clt->setStatus(HEADER);
 	}
 
@@ -622,7 +593,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 				std::vector<std::string> url = this->parseUrl(clt->getUrl());
 				Location *lct = svr->findLocation(url);
 				if (lct == nullptr)
-					throw ConnectionException("Can't find Location", NOT_FOUND); // connectionException(404);
+					throw ConnectionException("Can't find Location", NOT_FOUND);
 
 				if (!lct->getUpload().empty())
 				{

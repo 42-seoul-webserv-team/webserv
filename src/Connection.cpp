@@ -139,7 +139,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[1]);
 	kque.addEvent(this->mCGIfd[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
-	this->mCGIstart = clock();
+	gettimeofday(&this->mCGIstart, nullptr);
 }
 
 static char ** convert(std::map<std::string, std::string> env)
@@ -164,19 +164,93 @@ static char ** convert(std::map<std::string, std::string> env)
 	return ret;
 }
 
-void Connection::isTimeOver(void) const
+void Connection::uploadFiles(void)
 {
-	clock_t currTime = clock();
-	double runtime = static_cast<double>(currTime - this->mCGIstart) / CLOCKS_PER_SEC;
-	if (runtime >= 1)
+	int success = 0;
+	int fail = 0;
+
+	for (size_t j = 0; j < this->mUpload.size(); j++)
 	{
-		kill(this->getCGIproc(), SIGKILL);
-		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT); // connectionException(504);
+		int size = this->mUpload[j].size();
+		std::string file_name = "Untitle";
+		
+		try {
+			for (int i = 0; i < size - 1; i++)
+			{
+				size_t pos = this->mUpload[j][i].find(':');
+				if (pos == std::string::npos)
+					continue ;
+				std::string header = this->mUpload[j][i].substr(0, pos);
+				if (header == "Content-Disposition" 
+						&& this->mUpload[j][i].find("filename=") != std::string::npos)
+				{
+					file_name = this->mUpload[j][i].substr(this->mUpload[j][i].find("filename=") + 9);
+					if (!file_name.empty() && file_name.front() == '\"')
+					{
+						file_name.erase(0, 1);
+						pos = file_name.find('\"');
+						if (pos == std::string::npos)
+							throw file_name;
+						file_name = file_name.substr(0, pos);
+						if (file_name.empty())
+							throw file_name;
+					}
+				}
+			}
+			std::string path = this->getAbsolutePath();
+			if (path.back() == '/')
+				path.pop_back();
+			
+			std::string subject;
+			std::string extension = "";
+			size_t pos = file_name.rfind('.');
+	
+			if (pos == std::string::npos || pos == 0)
+				subject = file_name;
+			else
+			{
+				subject = file_name.substr(0, pos);
+				extension = file_name.substr(pos);
+			}
+	
+			std::string file = path + "/" + subject + extension;
+			int file_nbr = 0;
+	
+			while (access(file.c_str(), F_OK) == 0)
+			{
+				file = path + "/" + subject + ft::toString(file_nbr, 10) + extension;
+				file_nbr++;
+			}
+
+			std::ofstream output;
+			output.open(file, std::fstream::out);
+			if (!output.is_open())
+				throw file;
+			output << this->mUpload[j].back() << std::endl;
+			output.close();
+			success++;
+		} catch (std::string & e) {
+			fail++;
+		}
 	}
+
+	std::string body;
+	body = "Total: " + ft::toString(success + fail, 10) + ", ";
+	body += "Success: " + ft::toString(success, 10) + ", ";
+	body += "Fail: " + ft::toString(fail, 10);
+	this->mResponse.setBody(body);
 }
 
-// 1.0 merge
-// #include "Connection.hpp"
+void Connection::isTimeOver(void) const
+{
+	struct timeval now;
+	gettimeofday(&now, nullptr);
+	if (now.tv_sec - this->mCGIstart.tv_sec > CGI_OVERTIME)
+	{
+		kill(this->getCGIproc(), SIGKILL);
+		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT);
+	}
+}
 
 Connection::Connection(void)
 {
@@ -200,7 +274,11 @@ Connection::Connection(int socket, int svr_port)
 
 Connection::~Connection(void)
 {
+	this->mServer = nullptr;
+	this->mAbsolutePath.clear();
 	this->mUpload.clear();
+	this->mRemainStr.clear();
+	this->mCGI.clear();
 }
 
 void Connection::renewTime(void)
@@ -250,7 +328,7 @@ void Connection::readRequest(void)
     	this->mRequest.set(this->mRemainStr);
 		this->mRemainStr.clear();
 		if (!this->mRequest.checkBodyComplete())
-			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST); 
 		return ;
   	}
 
@@ -278,7 +356,7 @@ void Connection::readRequest(void)
 			this->mRequest.set(read_str);
 
 		if (!this->mRequest.checkBodyComplete())
-			throw ConnectionException("Request message not enough", BAD_REQUEST); // connectionException(400);
+			throw ConnectionException("Request message not enough", BAD_REQUEST);
 	}
 	else
 		this->mRemainStr = read_str;
@@ -310,7 +388,7 @@ bool Connection::checkOvertime(void)
 {
 	struct timeval now;
 	gettimeofday(&now, nullptr);
-	if (now.tv_sec - this->mTime.tv_sec > OVERTIME)
+	if (now.tv_sec - this->mTime.tv_sec > REQ_OVERTIME)
 		return true;
 	return false;
 }
@@ -393,10 +471,10 @@ void Connection::setUpload(void)
 		
 	pos = body.find("\r\n");
 	if (pos == std::string::npos)
-		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST);
 	std::string line = body.substr(0, pos);
 	if (line != start)
-		throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST);
 	
 	bool flag = true;	
 	while (!body.empty())
@@ -407,7 +485,7 @@ void Connection::setUpload(void)
 			if (body == end && flag == true)
 				break ;
 			else
-				throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
+				throw ConnectionException("Upload Body not match format", BAD_REQUEST);
 		}
 		else
 		{
@@ -432,7 +510,7 @@ void Connection::setUpload(void)
 		else if (flag == true)
 			this->mUpload.back().back() += line + "\r\n";
 		else
-			throw ConnectionException("Upload Body not match format", BAD_REQUEST); // connectionException(400);
+			throw ConnectionException("Upload Body not match format", BAD_REQUEST);
 	}
 }
 

@@ -10,7 +10,11 @@ Request::Request(void)
 
 Request::~Request(void)
 {
-	mHeader.clear();
+	this->mUrl.clear();
+	this->mQuery.clear();
+	this->mBody.clear();
+	this->mContentType.clear();
+	this->mHeader.clear();
 }
 
 eMethod Request::getMethod(void) const
@@ -65,7 +69,6 @@ void Request::setStartLine(std::string const & line)
 	else
 		throw ConnectionException("Unkwon Method", BAD_REQUEST);
 
-
 	if (words[1].size() > URL_LENGTH_MAX)
 		throw ConnectionException("URL too Long", REQUEST_URI_TOO_LONG);
 
@@ -117,7 +120,7 @@ void Request::setHeader(std::string const & line)
 			else if (this->findHeader("Transfer-Encoding") == "chunked")
 				this->mContentChunk = true;
 			else
-				throw ConnectionException("Need Content-Legnth", LENGTH_REQUIRED); // connectionException(411);
+				throw ConnectionException("Need Content-Legnth", LENGTH_REQUIRED);
 			this->mReadStatus = BODY;
 		}
 		else
@@ -150,7 +153,7 @@ void Request::setBody(std::string const & line)
 			}
 			catch (int e)
 			{
-				throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST); // connectionException(400);
+				throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST);
 			}
 			if (this->mContentLength == 0
 					&& this->findHeader("Trailer").empty())
