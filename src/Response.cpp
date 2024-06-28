@@ -8,7 +8,12 @@ Response::Response(void)
 
 Response::~Response(void)
 {
-
+	this->mCode.clear();
+	this->mStatusMsg.clear();
+	this->mContentType.clear();
+	this->mContentLength.clear();
+	this->mServerName.clear();
+	this->mBody.clear();
 }
 
 std::string Response::getCode(void)
@@ -55,7 +60,6 @@ void Response::setContentType(std::string const & type)
 {
 	this->mContentType = type;
 }
-
 void Response::setServerName(std::string const & server)
 {
 	this->mServerName = server;
