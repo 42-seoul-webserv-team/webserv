@@ -6,6 +6,9 @@
 #include <exception>
 #include <sys/socket.h>
 
+// juhyelee - for add cgi env
+#include <sstream>
+
 static char ** convert(std::map<std::string, std::string> env);
 
 eStatus Connection::getReadStatus(void) const
@@ -130,6 +133,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
+		this->addEnv(envp);
 		char ** CGIenvp = convert(envp);
 		char * argv[] = {
 			const_cast<char *>(this->mCGI.c_str()),
@@ -606,3 +610,47 @@ void Connection::printAll(void)
 	std::cout << std::endl;
 }
 
+void Connection::addEnv(std::map<std::string, std::string> & envp)
+{
+	envp["AUTH_TYPE"] = "";
+
+	std::string length;
+	std::stringstream ss;
+	ss << this->mRequest.getContentLength();
+	ss >> length;
+	envp["CONTENT_LENGTH"] = length;
+
+	envp["CONTENT_TYPE"] = this->mRequest.getContentType();
+	envp["GATEWAY_INTERFACE"] = "CGI/1.1";
+
+	std::string url = this->getAbsolutePath();
+	std::size_t pos = url.rfind("/");
+	std::string pathInfo = url.substr(pos, url.size() - pos);
+	envp["PATH_INFO"] = pathInfo;
+
+	envp["PATH_TRANSLATED"] = ""; // server의 location에서 알아와야함. 아니면, 미리 Connection이 가지고 있던지
+	envp["QUERY_STRING"] = "";
+	envp["REMOTE_ADDR"] = "";
+	envp["REMOTE_HOST"] = "";
+	envp["REMOTE_IDENT"] = "";
+	envp["REMOTE_USER"] = "";
+
+	eMethod method = this->mRequest.getMethod();
+	switch(method)
+	{
+		case GET :
+			envp["REQUEST_METHOD"] = "GET";
+			break;
+		case POST :
+			envp["REQUEST_METHOD"] = "POST";
+			break;
+		case DELETE :
+			envp["REQUEST_METHOD"] = "DELETE";
+			break;
+	}
+
+	envp["SCRIPT_NAME"] = "";
+	envp["SERVER_NAME"] = ""; // PATH_TRANSLATED랑 동일
+	envp["SERVER_PROTOCOL"] = "HTTP/1.1";
+	envp["SERVER_SOFTWARE"] = "webserv/1.0";
+}

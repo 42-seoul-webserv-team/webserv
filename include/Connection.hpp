@@ -97,6 +97,9 @@ class Connection
 		// add 1.0 merge
 
 		void printAll(void);
+
+		// juhyelee - add cgi env
+		void addEnv(std::map<std::string, std::string> & envp);
 };
 
 #endif

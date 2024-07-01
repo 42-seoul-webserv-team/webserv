@@ -43,6 +43,10 @@ class Request
 		bool checkBodyComplete(void);
 
 		void printAll(void);
+
+		// juhyelee - add cgi env
+		int getContentLength(void) const;
+		std::string getContentType(void) const;
 };
 
 #endif
