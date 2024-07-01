@@ -647,6 +647,9 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 		case DELETE :
 			envp["REQUEST_METHOD"] = "DELETE";
 			break;
+		default:
+			envp["REQEUST_METHOD"] = "UNKNOWN";
+			break;
 	}
 
 	envp["SCRIPT_NAME"] = "";
