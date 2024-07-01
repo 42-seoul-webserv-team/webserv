@@ -258,7 +258,7 @@ Connection::Connection(void)
 {
 	this->mSocket = -1;
 	this->mServerPort = -1;
-	this->mServer = NULL;
+	this->mServer = -1;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
 	this->renewTime();
@@ -268,7 +268,7 @@ Connection::Connection(int socket, int svr_port)
 {
 	this->mSocket = socket;
 	this->mServerPort = svr_port;
-	this->mServer = NULL;
+	this->mServer = -1;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
 	this->renewTime();
@@ -276,7 +276,7 @@ Connection::Connection(int socket, int svr_port)
 
 Connection::~Connection(void)
 {
-	this->mServer = NULL;
+	this->mServer = -1;
 	this->mAbsolutePath.clear();
 	this->mUpload.clear();
 	this->mRemainStr.clear();
@@ -293,7 +293,7 @@ int Connection::getSocket(void)
 	return this->mSocket;
 }
 
-Server *Connection::getServer(void)
+int Connection::getServer(void)
 {
 	return this->mServer;
 }
@@ -308,12 +308,11 @@ std::string Connection::getHost(void)
 	return this->mRequest.findHeader("Host");
 }
 
-void Connection::setServer(Server *svr)
+void Connection::setServer(int  svr)
 {
-	if (svr == NULL)
+	if (svr == -1)
 		return ;
 	
-	this->mResponse.setServerName(svr->getServerName());
 	this->mServer = svr;
 }
 
@@ -326,14 +325,9 @@ void Connection::readRequest(void)
 	int length = read(this->mSocket, buffer, BUFFER_SIZE);
 
   	if (length <= 0)
-	{
-    	this->mRequest.set(this->mRemainStr);
-		this->mRemainStr.clear();
-		if (!this->mRequest.checkBodyComplete())
-			throw ConnectionException("Request message not enough", BAD_REQUEST); 
 		return ;
-  	}
 
+	this->renewTime();
 	std::string read_str = this->mRemainStr + buffer;
 
 	size_t pos = read_str.find('\n');
@@ -352,22 +346,12 @@ void Connection::readRequest(void)
 		pos = read_str.find('\n');
 	}
 
-	if (length < BUFFER_SIZE)
-	{
-		if (!read_str.empty())
+	
+	if (length < BUFFER_SIZE && !read_str.empty())
 			this->mRequest.set(read_str);
-
-		if (!this->mRequest.checkBodyComplete())
-			throw ConnectionException("Request message not enough", BAD_REQUEST);
-	}
 	else
 		this->mRemainStr = read_str;
 	
-}
-
-void Connection::writeResponse(void)
-{
-
 }
 
 void Connection::closeSocket(void)

@@ -346,43 +346,43 @@ void WebServ::listenServer(void)
 	}
 }
 
-Server *WebServ::findServer(int socket)
+int WebServ::findServer(int socket)
 {
 	for (size_t i = 0; i < this->mServers.size(); i++)
 	{
 		if (this->mServers[i].getSocket() == socket)
-			return &(this->mServers[i]);
+			return i;
 	}
-	return NULL;
+	return -1;
 }
 
-Server *WebServ::findServer(Connection *clt)
+int WebServ::findServer(Connection &clt)
 {
-	Server *svr = clt->getServer();
-	if (svr != NULL)
+	int svr = clt.getServer();
+	if (svr != -1)
 		return svr;
 	
-	std::string host = clt->getHost();
+	std::string host = clt.getHost();
 	
-	std::map<int, std::vector<int> >::iterator it = this->mPortGroup.find(clt->getPort());
+	std::map<int, std::vector<int> >::iterator it = this->mPortGroup.find(clt.getPort());
 	if (it == this->mPortGroup.end())
-		return NULL;
+		return -1;
 
-	if (!host.empty())
+	if (host.empty())
+		return -1;
+
+	for (size_t i = 0; i < it->second.size(); i++)
 	{
-		for (size_t i = 0; i < it->second.size(); i++)
+		int idx = it->second[i];
+		if (this->mServers[idx].getHost() == host)
 		{
-			int idx = it->second[i];
-			if (this->mServers[idx].getHost() == host)
-			{
-				clt->setServer(&(this->mServers[idx]));
-				return clt->getServer();
-			}
+			clt.setServer(idx);
+			return idx;
 		}
 	}
 	
-	clt->setServer(&(this->mServers[it->second.front()]));
-	return clt->getServer();
+	clt.setServer(it->second.front());
+	return it->second.front();
 }
 
 void WebServ::closeConnection(Connection *clt)
@@ -410,7 +410,7 @@ void WebServ::activate()
 
 	while (true)
 	{
-		Server *svr = NULL;
+		int svr = -1;
 
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == NULL)
@@ -425,16 +425,16 @@ void WebServ::activate()
 			{
 				this->mLogger.putAccess("connect connection");
 				svr = this->findServer(curEvent->ident); 
-				if (svr == NULL)
+				if (svr == -1)
 					throw ManagerException("Cannot find Server");
-				int clt_socket = accept(svr->getSocket(), NULL, NULL);
+				int clt_socket = accept(this->mServers[svr].getSocket(), NULL, NULL);
 				if (clt_socket == -1)
 					throw ManagerException("accpet connection failed");
 
 				if (fcntl(clt_socket, F_SETFL, O_NONBLOCK) == -1)
 					throw ManagerException("fcntl connection socket fialed");
 
-				this->mConnection.push_back(Connection(clt_socket, svr->getPort()));
+				this->mConnection.push_back(Connection(clt_socket, this->mServers[svr].getPort()));
 				this->mKqueue.addEvent(clt_socket, &(this->mConnection.back()));
 			}
 			if (curEvent->udata != NULL
@@ -446,9 +446,9 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
-				Server *svr = this->findServer(clt);
-				if (svr != NULL)
-					this->parseRequest(clt, svr);
+				int svr = this->findServer(*clt);
+				if (svr != -1)
+					this->parseRequest(clt, &this->mServers[svr]);
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
@@ -480,10 +480,10 @@ void WebServ::activate()
 		{
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
-			svr = findServer(clt);
-			if (svr != NULL && clt != NULL)
+			svr = findServer(*clt);
+			if (svr != -1 && clt != NULL)
 			{
-				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
+				Response errorResponse = this->mServers[svr].getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
 				clt->printAll();
@@ -520,8 +520,8 @@ void WebServ::activate()
 	{
 		if (it->checkOvertime())
 		{
-			Server *svr = this->findServer(&*it);
-			this->mSender.sendMessage(it->getSocket(), svr->getErrorPage(408, this->mResponseCodeMSG[408]));
+			int svr = this->findServer(*it);
+			this->mSender.sendMessage(it->getSocket(), this->mServers[svr].getErrorPage(408, this->mResponseCodeMSG[408]));
 			this->mLogger.putAccess("close connection");
 			it->closeSocket();
 			it = this->mConnection.erase(it);
@@ -596,11 +596,9 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 				if (lct == NULL)
 					throw ConnectionException("Can't find Location", NOT_FOUND);
 
-				if (!lct->getUpload().empty())
-				{
-					clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
-					clt->setAbsolutePath(clt->getAbsolutePath(), clt->getUrl(), "text/html");
-				}
+				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
+				clt->setAbsolutePath(clt->getAbsolutePath(), clt->getUrl(), "text/html");
+
 				clt->setType(UPLOAD);
 			}
 			clt->setStatus(BODY);
