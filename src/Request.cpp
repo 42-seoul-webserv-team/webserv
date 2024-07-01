@@ -119,7 +119,7 @@ void Request::setHeader(std::string const & line)
 			else if (this->findHeader("Transfer-Encoding") == "chunked")
 				this->mContentChunk = true;
 			else
-				throw ConnectionException("Need Content-Legnth", LENGTH_REQUIRED);
+				throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
 			this->mReadStatus = BODY;
 		}
 		else

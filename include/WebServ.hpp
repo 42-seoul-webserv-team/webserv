@@ -44,8 +44,8 @@ class WebServ {
 		void createMIMEType(void);
 		void listenServer(void);
 		std::string findMIMEType(std::string const & file);
-		Server *findServer(int socket);
-		Server *findServer(Connection *clt);
+		int findServer(int socket);
+		int findServer(Connection &clt);
 		std::vector<std::string> parseUrl(std::string const & url);
 		void closeConnection(Connection *clt);
 		void parseRequest(Connection *clt, Server *svr);

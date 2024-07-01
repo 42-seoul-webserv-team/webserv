@@ -22,7 +22,7 @@ class Connection
 	private:
 		int mSocket;
 		int mServerPort;
-		Server *mServer;
+		int mServer;
 		Request mRequest;
 		Response mResponse;
 		std::string  mAbsolutePath;
@@ -50,7 +50,7 @@ class Connection
 		~Connection(void);
 
 		int getSocket(void);
-		Server *getServer(void);
+		int getServer(void);
 		eStatus getStatus(void);
 		int getPort(void);
 
@@ -59,7 +59,7 @@ class Connection
 		eMethod getMethod(void);
 		eProcessType getType(void);
 
-		void setServer(Server *svr);
+		void setServer(int svr);
 		void setStatus(eStatus status);
 		void setAbsolutePath(std::string const & root, std::string const & url, std::string const & type);
 		void setUpload(void);
@@ -69,7 +69,7 @@ class Connection
 
 		void readRequest(void);
 		void writeResponse(void);
-		void closeSocket(void); // juhyelee - need for run because real close(fd)
+		void closeSocket(void);
 
 		bool checkUpload(void);
 		bool checkMethod(eMethod method);
@@ -77,7 +77,6 @@ class Connection
 		bool checkOvertime(void);
 		bool checkStatus(void);
 
-		// add 1.0 merge
 		eStatus getReadStatus(void) const;
 		eMethod getMethod(void) const;
 		eProcessType getProcType(void) const;
