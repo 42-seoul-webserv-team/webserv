@@ -36,7 +36,6 @@ std::string Request::findHeader(std::string const & key)
 {
 	return this->mHeader[key];
 }
-
 void Request::set(std::string const & line)
 {
 	if (this->mReadStatus == STARTLINE)

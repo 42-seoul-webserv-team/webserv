@@ -21,7 +21,7 @@ int Kqueue::checkEvent(void)
 		return 0;
 
 	this->mKqIdx = 0;
-	this->mEventSize = kevent(this->mKqFD, &(this->mChangeList.front()), this->mChangeList.size(), this->mEventList, EVENT_MAX, nullptr);
+	this->mEventSize = kevent(this->mKqFD, &(this->mChangeList.front()), this->mChangeList.size(), this->mEventList, EVENT_MAX, NULL);
 	this->mChangeList.clear();
 
 	return this->mEventSize;
@@ -30,7 +30,7 @@ int Kqueue::checkEvent(void)
 struct kevent *Kqueue::getEvent(void)
 {
 	if (this->mKqIdx >= this->mEventSize)
-		return nullptr;
+		return NULL;
 
 	return &(this->mEventList[this->mKqIdx++]);
 }
@@ -38,8 +38,8 @@ struct kevent *Kqueue::getEvent(void)
 void Kqueue::addEvent(int fd, void *udata)
 {
 	struct kevent tmp;
-	if (udata == nullptr)
-		EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+	if (udata == NULL)
+		EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
 	else
 		EV_SET(&tmp, fd, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, udata);
 	this->mChangeList.push_back(tmp);
