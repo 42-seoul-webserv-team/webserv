@@ -59,11 +59,13 @@ void Connection::fillRequest(void)
 
 	std::string body = "";
 	std::string line;
-	while (std::getline(file, line))
-	{
-		body += line;
-		body += "\r\n";
-	}
+	
+	while (file.good())
+		body.push_back(file.get());
+
+	if (!body.empty())
+		body.pop_back();
+
 	this->mResponse.setBody(body);
 	file.close();
 }
@@ -139,7 +141,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[1]);
 	kque.addEvent(this->mCGIfd[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
-	gettimeofday(&this->mCGIstart, nullptr);
+	gettimeofday(&this->mCGIstart, NULL);
 }
 
 static char ** convert(std::map<std::string, std::string> env)
@@ -244,7 +246,7 @@ void Connection::uploadFiles(void)
 void Connection::isTimeOver(void) const
 {
 	struct timeval now;
-	gettimeofday(&now, nullptr);
+	gettimeofday(&now, NULL);
 	if (now.tv_sec - this->mCGIstart.tv_sec > CGI_OVERTIME)
 	{
 		kill(this->getCGIproc(), SIGKILL);
@@ -256,7 +258,7 @@ Connection::Connection(void)
 {
 	this->mSocket = -1;
 	this->mServerPort = -1;
-	this->mServer = nullptr;
+	this->mServer = NULL;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
 	this->renewTime();
@@ -266,7 +268,7 @@ Connection::Connection(int socket, int svr_port)
 {
 	this->mSocket = socket;
 	this->mServerPort = svr_port;
-	this->mServer = nullptr;
+	this->mServer = NULL;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
 	this->renewTime();
@@ -274,7 +276,7 @@ Connection::Connection(int socket, int svr_port)
 
 Connection::~Connection(void)
 {
-	this->mServer = nullptr;
+	this->mServer = NULL;
 	this->mAbsolutePath.clear();
 	this->mUpload.clear();
 	this->mRemainStr.clear();
@@ -283,7 +285,7 @@ Connection::~Connection(void)
 
 void Connection::renewTime(void)
 {
-	gettimeofday(&this->mTime, nullptr);
+	gettimeofday(&this->mTime, NULL);
 }
 
 int Connection::getSocket(void)
@@ -308,7 +310,7 @@ std::string Connection::getHost(void)
 
 void Connection::setServer(Server *svr)
 {
-	if (svr == nullptr)
+	if (svr == NULL)
 		return ;
 	
 	this->mResponse.setServerName(svr->getServerName());
@@ -387,7 +389,7 @@ bool Connection::checkComplete(void)
 bool Connection::checkOvertime(void)
 {
 	struct timeval now;
-	gettimeofday(&now, nullptr);
+	gettimeofday(&now, NULL);
 	if (now.tv_sec - this->mTime.tv_sec > REQ_OVERTIME)
 		return true;
 	return false;

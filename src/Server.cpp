@@ -56,9 +56,9 @@ size_t	Server::getLocationSize(void)
 Location *Server::findLocation(std::vector<std::string> url)
 {
 	if (url.empty() || this->mLocation.empty())
-		return nullptr;
+		return NULL;
 
-	Location *ret = nullptr;
+	Location *ret = NULL;
 	size_t cmp = 0;
 	
 	for (size_t i = 0; i < this->mLocation.size(); i++)

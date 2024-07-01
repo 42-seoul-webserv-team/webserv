@@ -286,7 +286,9 @@ void WebServ::configure(std::string const & config)
 
 	while (conf.good())
 		contents.push_back(conf.get());
-	contents.pop_back(); 
+
+	if (!contents.empty())
+		contents.pop_back(); 
 	
 	if (conf.bad())
 	{
@@ -337,7 +339,7 @@ void WebServ::listenServer(void)
 			if (fcntl(svr_socket, F_SETFL, O_NONBLOCK) == -1)
 				throw ManagerException("Server fcntl() failed!");
 
-			this->mKqueue.addEvent(svr_socket, nullptr);
+			this->mKqueue.addEvent(svr_socket, NULL);
 		}
 		else
 			group->second.push_back(i);
@@ -351,30 +353,31 @@ Server *WebServ::findServer(int socket)
 		if (this->mServers[i].getSocket() == socket)
 			return &(this->mServers[i]);
 	}
-	return nullptr;
+	return NULL;
 }
 
 Server *WebServ::findServer(Connection *clt)
 {
 	Server *svr = clt->getServer();
-	if (svr != nullptr)
+	if (svr != NULL)
 		return svr;
 	
 	std::string host = clt->getHost();
-	if (host.empty())
-		return nullptr;
 	
 	std::map<int, std::vector<int> >::iterator it = this->mPortGroup.find(clt->getPort());
 	if (it == this->mPortGroup.end())
-		return nullptr;
+		return NULL;
 
-	for (size_t i = 0; i < it->second.size(); i++)
+	if (!host.empty())
 	{
-		int idx = it->second[i];
-		if (this->mServers[idx].getHost() == host)
+		for (size_t i = 0; i < it->second.size(); i++)
 		{
-			clt->setServer(&(this->mServers[idx]));
-			return clt->getServer();
+			int idx = it->second[i];
+			if (this->mServers[idx].getHost() == host)
+			{
+				clt->setServer(&(this->mServers[idx]));
+				return clt->getServer();
+			}
 		}
 	}
 	
@@ -410,19 +413,19 @@ void WebServ::activate()
 		Server *svr = NULL;
 
 		struct kevent *curEvent = this->mKqueue.getEvent();
-		if (curEvent == nullptr)
+		if (curEvent == NULL)
 			return ;
-		if (curEvent->udata == nullptr
+		if (curEvent->udata == NULL
 				&& (curEvent->flags & EV_ERROR))
 			throw ManagerException("Server socket failed");
 		try 
 		{
-			if (curEvent->udata == nullptr
+			if (curEvent->udata == NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				this->mLogger.putAccess("connect connection");
 				svr = this->findServer(curEvent->ident); 
-				if (svr == nullptr)
+				if (svr == NULL)
 					throw ManagerException("Cannot find Server");
 				int clt_socket = accept(svr->getSocket(), NULL, NULL);
 				if (clt_socket == -1)
@@ -434,20 +437,20 @@ void WebServ::activate()
 				this->mConnection.push_back(Connection(clt_socket, svr->getPort()));
 				this->mKqueue.addEvent(clt_socket, &(this->mConnection.back()));
 			}
-			if (curEvent->udata != nullptr
+			if (curEvent->udata != NULL
 					&& (curEvent->flags & EV_ERROR))
 				throw ManagerException("Connection socket failed");
 
-			if (curEvent->udata != nullptr
+			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
 				Server *svr = this->findServer(clt);
-				if (svr != nullptr)
+				if (svr != NULL)
 					this->parseRequest(clt, svr);
 			}
-			if (curEvent->udata != nullptr
+			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
@@ -478,10 +481,8 @@ void WebServ::activate()
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			svr = findServer(clt);
-			std::cout << svr->getServerName() << std::endl;
-			if (svr != NULL)
+			if (svr != NULL && clt != NULL)
 			{
-				// juhyelee - Send Error Page
 				Response errorResponse = svr->getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
@@ -539,7 +540,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 	{
 		std::vector<std::string> url = this->parseUrl(clt->getUrl());
 		Location *lct = svr->findLocation(url);
-		if (lct == nullptr)
+		if (lct == NULL)
 			throw ConnectionException("Can't find Location", NOT_FOUND);
 
 		if (!lct->checkMethod(clt->getMethod()))
@@ -592,7 +593,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			{
 				std::vector<std::string> url = this->parseUrl(clt->getUrl());
 				Location *lct = svr->findLocation(url);
-				if (lct == nullptr)
+				if (lct == NULL)
 					throw ConnectionException("Can't find Location", NOT_FOUND);
 
 				if (!lct->getUpload().empty())
