@@ -8,7 +8,7 @@ enum eStatus
 
 enum eMethod
 {
-	UNKNOWN, GET, POST, DELETE, HEAD
+	GET, HEAD, POST, DELETE, UNKNOWN
 };
 
 enum eProcessType

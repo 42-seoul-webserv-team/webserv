@@ -7,6 +7,7 @@ Location::Location(void)
 	this->mMethod.push_back(GET);
 	this->mMethod.push_back(POST);
 	this->mMethod.push_back(DELETE);
+	this->mMethod.push_back(HEAD);
 }
 
 Location::~Location(void)
@@ -173,6 +174,9 @@ void Location::printAll(void)
 				break ;
 			case DELETE:
 				std::cout << "DELETE ";
+				break ;
+			case HEAD:
+				std::cout << "HEAD ";
 				break ;
 			default:
 				break ;

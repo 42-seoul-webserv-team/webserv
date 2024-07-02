@@ -1,5 +1,5 @@
 #include "Request.hpp"
-
+#include <iostream>
 Request::Request(void)
 {
 	this->mReadStatus = STARTLINE;
@@ -136,7 +136,10 @@ void Request::setHeader(std::string const & line)
 			else if (this->findHeader("Transfer-Encoding") == "chunked")
 				this->mContentChunk = true;
 			else
+			{
+				std::cout << "3" << std::endl;
 				throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
+			}
 			this->mReadStatus = BODY;
 		}
 		else

@@ -445,6 +445,7 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
+				clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
@@ -576,7 +577,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 	if (clt->getStatus() == HEADER && clt->checkStatus())
 	{
 		eMethod  method = clt->getMethod();
-		if (method == GET || method == DELETE)
+		if (method == GET || method == DELETE || method == HEAD)
 			clt->setStatus(COMPLETE);
 		else if (method == POST)
 		{
@@ -715,7 +716,8 @@ void WebServ::validConfig(std::string contents)
 				std::string method = line[i];
 				if (method != "GET"
 						&& method != "POST"
-						&& method != "DELETE")
+						&& method != "DELETE"
+						&& method != "HEAD")
 					throw rows;
 			}
 			allowMethodFlag = true;
@@ -862,6 +864,9 @@ void	WebServ::parseConfig(std::string & contents)
 					curLct->addMethod(POST);
 				else if (line[i] == "DELETE")
 					curLct->addMethod(DELETE);
+				else if (line[i] == "HEAD")
+					curLct->addMethod(HEAD);
+				
 			}
 		}
 		else if (line.front() == ROOT_PATH)
