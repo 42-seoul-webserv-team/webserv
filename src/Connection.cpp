@@ -345,6 +345,7 @@ void Connection::readRequest(void)
 	else if (length == -1)
 		throw ManagerException("Connection closed, Cannot read");
 
+	buffer[length] = '\0';
 	this->renewTime();
 	std::string read_str = this->mRemainStr + buffer;
 
@@ -352,24 +353,27 @@ void Connection::readRequest(void)
 	while (pos != std::string::npos)
 	{
 		std::string line = read_str.substr(0, pos);
-		
-		line.pop_back();
-		read_str.erase(0, pos + 1);
+	
+		if (line.back() == '\r')
+		{
+			line.pop_back();
+			read_str.erase(0, pos + 1);
+		}
+		else
+			read_str.erase(0, pos);
 		
 		this->mRequest.set(line);
 
 		if (this->mRequest.getStatus() == COMPLETE)
+		{
+			this->mRemainStr.clear();
 			return ;
+		}
 
 		pos = read_str.find('\n');
 	}
 
-	
-	if (length < BUFFER_SIZE && !read_str.empty())
-			this->mRequest.set(read_str);
-	else
-		this->mRemainStr = read_str;
-	
+	this->mRemainStr = read_str;
 }
 
 void Connection::closeSocket(void)

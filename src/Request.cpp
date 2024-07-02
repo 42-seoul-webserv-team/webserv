@@ -53,6 +53,9 @@ std::string Request::findHeader(std::string const & key)
 }
 void Request::set(std::string const & line)
 {
+	if (this->mReadStatus == COMPLETE)
+		return ;
+
 	if (this->mReadStatus == STARTLINE)
 	{
 		this->setStartLine(line);
@@ -137,8 +140,7 @@ void Request::setHeader(std::string const & line)
 				this->mContentChunk = true;
 			else
 			{
-				std::cout << "3" << std::endl;
-				throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
+				throw ConnectionException("POST required entity header", MATHOD_NOT_ALLOWED);
 			}
 			this->mReadStatus = BODY;
 		}

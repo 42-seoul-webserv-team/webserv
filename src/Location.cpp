@@ -56,8 +56,7 @@ std::string Location::getCGI(std::string const & url)
 
 bool Location::checkMethod(eMethod reqMethod)
 {
-	for (std::vector<eMethod>::iterator it = this->mMethod.begin();
-			it != this->mMethod.end(); it++)
+	for (std::vector<eMethod>::iterator it = this->mMethod.begin(); it != this->mMethod.end(); it++)
 	{
 		if (*it == reqMethod)
 			return true;

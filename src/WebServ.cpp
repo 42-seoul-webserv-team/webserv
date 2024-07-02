@@ -1,5 +1,6 @@
 //Webserv
 #include "WebServ.hpp"
+#include "enum.hpp"
 #include "Connection.hpp"
 #include <cstdio>
 #include <dirent.h>
@@ -542,7 +543,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			throw ConnectionException("Can't find Location", NOT_FOUND);
 
 		if (!lct->checkMethod(clt->getMethod()))
-			throw ConnectionException("Not allowed Method", MATHOD_NOT_ALLOWED);
+			throw ConnectionException("Not allowed Method in Location", MATHOD_NOT_ALLOWED);
 
 		if (!lct->getRedirect().empty())
 			throw RedirectionException(lct->getRedirect(), svr->getServerName());
@@ -582,10 +583,9 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 	if (clt->getStatus() == HEADER && clt->checkStatus())
 	{
-		eMethod  method = clt->getMethod();
-		if (method == GET || method == DELETE || method == HEAD)
-			clt->setStatus(COMPLETE);
-		else if (method == POST)
+		clt->setStatus(COMPLETE);
+		clt->printAll();
+		if (clt->getMethod() == POST)
 		{
 			if (clt->checkUpload())
 			{
@@ -871,8 +871,7 @@ void	WebServ::parseConfig(std::string & contents)
 				else if (line[i] == "DELETE")
 					curLct->addMethod(DELETE);
 				else if (line[i] == "HEAD")
-					curLct->addMethod(HEAD);
-				
+					curLct->addMethod(HEAD);	
 			}
 		}
 		else if (line.front() == ROOT_PATH)
