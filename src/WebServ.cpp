@@ -378,11 +378,13 @@ int WebServ::findServer(Connection &clt)
 		if (this->mServers[idx].getHost() == host)
 		{
 			clt.setServer(idx);
+			clt.setServerName(this->mServers[idx].getServerName());
 			return idx;
 		}
 	}
 	
 	clt.setServer(it->second.front());
+	clt.setServerName(this->mServers[it->second.front()].getServerName());
 	return it->second.front();
 }
 

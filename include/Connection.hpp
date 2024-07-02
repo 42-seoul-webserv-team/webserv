@@ -63,6 +63,7 @@ class Connection
 
 		void setAccept(int socket, int port);
 		void setServer(int svr);
+		void setServerName(std::string const & svr);
 		void setStatus(eStatus status);
 		void setAbsolutePath(std::string const & root, std::string const & url, std::string const & type);
 		void setUpload(void);

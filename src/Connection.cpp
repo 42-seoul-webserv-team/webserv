@@ -283,6 +283,11 @@ Connection::~Connection(void)
 	this->mCGI.clear();
 }
 
+void Connection::setServerName(std::string const & svr)
+{
+	this->mResponse.setServerName(svr);
+}
+
 void Connection::setAccept(int socket, int port)
 {
 	this->mSocket = socket;
