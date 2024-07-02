@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <string>
+#include <sstream>
 #include <iostream>
 #include <exception>
 #include <sys/socket.h>
@@ -64,7 +65,10 @@ void Connection::fillRequest(void)
 	if (!body.empty())
 		body.pop_back();
 
-	this->mResponse.setBody(body);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(body);
+	}
 	file.close();
 }
 
@@ -78,7 +82,10 @@ void Connection::fillRequest(std::vector<std::string> & list)
 		body += "<li><a href=\"" + *it + "\">" + *it + "</a></li>";
 	}
 	body += "</ul></body></html>";
-	this->mResponse.setBody(body);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(body);
+	}
 }
 
 void Connection::fillRequestCGI(void)
@@ -91,7 +98,10 @@ void Connection::fillRequestCGI(void)
 		std::string str = buffer;
 		ret += str;
 	}
-	this->mResponse.setBody(ret);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(ret);
+	}
 }
 
 void Connection::removeFile(void) const
@@ -128,6 +138,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
+		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
 			const_cast<char *>(this->mCGI.c_str()),
@@ -610,3 +621,48 @@ void Connection::printAll(void)
 	std::cout << std::endl;
 }
 
+void Connection::addEnv(std::map<std::string, std::string> & envp)
+{
+	envp["AUTH_TYPE"] = "";
+	envp["QUERY_STRING"] = "";
+	envp["REMOTE_ADDR"] = "";
+	envp["REMOTE_HOST"] = "";
+	envp["REMOTE_IDENT"] = "";
+	envp["REMOTE_USER"] = "";
+	envp["SCRIPT_NAME"] = "";
+	envp["SERVER_NAME"] = ""; // PATH_TRANSLATED랑 동일
+	envp["GATEWAY_INTERFACE"] = "CGI/1.1";
+	envp["SERVER_PROTOCOL"] = "HTTP/1.1";
+	envp["SERVER_SOFTWARE"] = "webserv/1.0";
+	envp["PATH_TRANSLATED"] = this->mAbsolutePath;
+
+	std::string length;
+	std::stringstream ss;
+	eMethod method = this->mRequest.getMethod();
+	switch(method)
+	{
+		case GET :
+			envp["REQUEST_METHOD"] = "GET";
+			break;
+		case POST :
+			ss << this->mRequest.getContentLength();
+			ss >> length;
+			envp["CONTENT_LENGTH"] = length;
+			envp["REQUEST_METHOD"] = "POST";
+			envp["CONTENT_TYPE"] = this->mRequest.getContentType();
+			break;
+		case DELETE :
+			envp["REQUEST_METHOD"] = "DELETE";
+			break;
+		default:
+			envp["REQEUST_METHOD"] = "UNKNOWN";
+			break;
+	}
+
+	std::string url = this->mRequest.getUrl();
+	std::size_t pos = url.find("//");
+	url = url.substr(pos + 2, url.size() - pos);
+	pos = url.find("/");
+	url = url.substr(pos + 1, url.size() - pos);
+	envp["PATH_INFO"] = url;
+}

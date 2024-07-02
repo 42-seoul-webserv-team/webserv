@@ -88,6 +88,9 @@ class Connection
 		void uploadFiles(void);
 
 		void printAll(void);
+		
+		// juhyelee - add cgi env
+		void addEnv(std::map<std::string, std::string> & envp);
 };
 
 #endif

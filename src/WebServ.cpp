@@ -15,6 +15,7 @@ void WebServ::run(Connection * clt)
 	switch(clt->getMethod())
 	{
 		case GET:
+		case HEAD:
 			runGET(clt);
 			break;
 		case POST:
@@ -24,7 +25,7 @@ void WebServ::run(Connection * clt)
 			runDELETE(clt);
 			break;
 		default:
-			break; 
+			break;
 	}
 }
 
