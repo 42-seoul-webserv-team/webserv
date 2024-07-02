@@ -472,6 +472,7 @@ void WebServ::activate()
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
+					this->mLogger.putAccess("close connection");
 				}
 			}
 		} 
@@ -480,12 +481,15 @@ void WebServ::activate()
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			svr = findServer(*clt);
-			if (svr != -1 && clt != NULL)
+			if (clt != NULL)
 			{
+				if (svr == -1)
+					svr = this->mPortGroup[clt->getPort()].front();
 				Response errorResponse = this->mServers[svr].getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 		catch (RedirectionException & e)
@@ -497,6 +501,7 @@ void WebServ::activate()
 				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 		catch(ManagerException & e)
@@ -506,6 +511,7 @@ void WebServ::activate()
 			if (clt != NULL)
 			{
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 	}

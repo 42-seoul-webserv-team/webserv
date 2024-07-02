@@ -256,6 +256,9 @@ void Request::printAll(void)
 		case DELETE:
 			std::cout << "DELETE";
 			break ;
+		case HEAD:
+			std::cout << "HEAD";
+			break ;
 		default:
 			break ;
 	}
