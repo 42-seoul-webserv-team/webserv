@@ -6,8 +6,6 @@
 #include <exception>
 #include <sys/socket.h>
 
-static char ** convert(std::map<std::string, std::string> env);
-
 eStatus Connection::getReadStatus(void) const
 {
 	return this->mRequest.getStatus();
@@ -130,21 +128,22 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
-		char ** CGIenvp = convert(envp);
+		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
 			const_cast<char *>(this->mCGI.c_str()),
 			NULL
 		};
-		execve(argv[0], argv, CGIenvp);
+		int ret = execve(argv[0], argv, CGIenvp);
+		exit(ret);
 	}
 
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[1]);
-	kque.addEvent(this->mCGIfd[0], this); // 1초 마다 이벤트가 발생했는지 확인해야함
+	kque.addEvent(this->mCGIfd[0], this);
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
-static char ** convert(std::map<std::string, std::string> env)
+char ** Connection::convert(std::map<std::string, std::string> env)
 {
 	char ** ret = new char * [env.size() + 1];
 	size_t index = 0;
@@ -327,7 +326,6 @@ void Connection::readRequest(void)
 	if (this->mRequest.getStatus() == COMPLETE)
 		return ;
 
-	std::cout << this->mSocket << " read" << std::endl;
 	char buffer[BUFFER_SIZE];
 	int length = read(this->mSocket, buffer, BUFFER_SIZE);
 

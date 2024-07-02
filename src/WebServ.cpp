@@ -465,7 +465,6 @@ void WebServ::activate()
 				}
 				else
 					this->run(clt);
-				clt->printAll();
 				if (clt->checkComplete())
 				{
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
@@ -484,7 +483,6 @@ void WebServ::activate()
 				Response errorResponse = this->mServers[svr].getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
-				clt->printAll();
 				clt->closeSocket();
 			}
 		}
@@ -496,7 +494,6 @@ void WebServ::activate()
 			{
 				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->mLogger.putAccess("send response");
-				clt->printAll();
 				clt->closeSocket();
 			}
 		}
@@ -506,7 +503,6 @@ void WebServ::activate()
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			if (clt != NULL)
 			{
-				clt->printAll();
 				clt->closeSocket();
 			}
 		}

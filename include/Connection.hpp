@@ -36,6 +36,7 @@ class Connection
 		struct timeval mCGIstart;
 		
 		void renewTime(void);
+		char **convert(std::map<std::string, std::string> env);
 
 	public:
 		Connection(void);
@@ -70,7 +71,6 @@ class Connection
 		void setContentType(std::string const & type);
 
 		void readRequest(void);
-		void writeResponse(void);
 		void closeSocket(void);
 
 		bool checkUpload(void);
@@ -83,8 +83,8 @@ class Connection
 		void fillRequest(std::vector<std::string> & list);
 		void fillRequestCGI(void);
 		void removeFile(void) const;
-		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void isTimeOver(void) const;
+		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void uploadFiles(void);
 
 		void printAll(void);
