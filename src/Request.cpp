@@ -263,3 +263,13 @@ void Request::printAll(void)
 	std::cout << "\t\t}" << std::endl;
 	std::cout << "\t\tBody: " << this->mBody << std::endl;
 }
+
+int Request::getContentLength(void) const
+{
+	return this->mContentLength;
+}
+
+std::string Request::getContentType(void) const
+{
+	return this->mContentType;
+}
