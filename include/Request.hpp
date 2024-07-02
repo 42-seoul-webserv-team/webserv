@@ -32,14 +32,14 @@ class Request
 		Request(void);
 		~Request(void);
 
+		void clear(void);
+
 		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;
 		std::string getBody(void) const;
-
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
-
 		bool checkBodyComplete(void);
 
 		void printAll(void);

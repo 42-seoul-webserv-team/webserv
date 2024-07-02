@@ -3,6 +3,7 @@
 Request::Request(void)
 {
 	this->mReadStatus = STARTLINE;
+	this->mMethod = UNKNOWN;
 	this->mContentChunk = false;
 	this->mContentLength = -1;
 	this->mHeaderLength = 0;
@@ -14,6 +15,20 @@ Request::~Request(void)
 	this->mQuery.clear();
 	this->mBody.clear();
 	this->mContentType.clear();
+	this->mHeader.clear();
+}
+
+void Request::clear(void)
+{
+	this->mReadStatus = STARTLINE;
+	this->mMethod = UNKNOWN;
+	this->mContentChunk = false;
+	this->mContentLength = -1;
+	this->mContentType.clear();
+	this->mHeaderLength = 0;
+	this->mUrl.clear();
+	this->mQuery.clear();
+	this->mBody.clear();
 	this->mHeader.clear();
 }
 

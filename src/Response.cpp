@@ -16,6 +16,16 @@ Response::~Response(void)
 	this->mBody.clear();
 }
 
+void Response::clear(void)
+{
+	this->mCode = "200";
+	this->mStatusMsg = "OK";
+	this->mContentType.clear();
+	this->mContentLength.clear();
+	this->mServerName.clear();
+	this->mBody.clear();
+}
+
 std::string Response::getCode(void)
 {
 	return this->mCode;

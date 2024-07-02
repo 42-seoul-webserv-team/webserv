@@ -97,13 +97,13 @@ void WebServ::runDELETE(Connection * clt)
 		}
 		else
 		{
-			struct dirent * file = readdir(dir); // 첫 . 는 버린다.
-			file = readdir(dir); // 두번째 .. 도 버린다.
+			struct dirent * file = readdir(dir);
+			file = readdir(dir); 
 			while ((file = readdir(dir)) != NULL)
 			{
 				if (std::remove(file->d_name) < 0)
 				{
-					throw ConnectionException("Fail to remove file", INTERAL_SERVER_ERROR); // 500
+					throw ConnectionException("Fail to remove file", INTERAL_SERVER_ERROR);
 				}
 			}
 			closedir(dir);
@@ -121,7 +121,7 @@ void WebServ::runDELETE(Connection * clt)
 
 void WebServ::getFileList(std::vector<std::string> & list, DIR * dir)
 {
-	struct dirent * file = readdir(dir); // 첫 . 는 버린다.
+	struct dirent * file = readdir(dir);
 	while ((file = readdir(dir)) != NULL)
 	{
 		std::string str = file->d_name;
@@ -156,7 +156,6 @@ WebServ::~WebServ(void)
 	this->mServers.clear();
 	this->mPortGroup.clear();
 	this->mResponseCodeMSG.clear();
-	this->mConnection.clear();
 	this->mMIMEType.clear();
 }
 
@@ -315,6 +314,7 @@ void WebServ::listenServer(void)
 	for (size_t i = 0; i < this->mServers.size(); i++)
 	{
 		Server &svr = this->mServers[i];
+
 		int port = svr.getPort();
 		std::map<int, std::vector<int> >::iterator group = this->mPortGroup.find(port);
 		if (group == this->mPortGroup.end())
@@ -385,24 +385,9 @@ int WebServ::findServer(Connection &clt)
 	return it->second.front();
 }
 
-void WebServ::closeConnection(Connection *clt)
-{
-	int socket = clt->getSocket();
-	clt->closeSocket();
-	std::vector<Connection>::iterator it = this->mConnection.begin();
-	while (it != this->mConnection.end())
-	{
-		if (it->getSocket() == socket)
-		{
-			this->mConnection.erase(it);
-			break;
-		}
-	}
-	this->mLogger.putAccess("close connection");
-}
-
 void WebServ::activate()
 {
+	std::cout << "run!" << std::endl;
 	if (this->mEnvp.empty())
 		return ;
 
@@ -410,11 +395,12 @@ void WebServ::activate()
 
 	while (true)
 	{
+		std::cout << "event!" << std::endl;
 		int svr = -1;
 
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == NULL)
-			return ;
+			break ;
 		if (curEvent->udata == NULL
 				&& (curEvent->flags & EV_ERROR))
 			throw ManagerException("Server socket failed");
@@ -423,7 +409,19 @@ void WebServ::activate()
 			if (curEvent->udata == NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
-				this->mLogger.putAccess("connect connection");
+				Connection *clt = NULL;
+				for (size_t i = 0; i < EVENT_MAX; i++)
+				{
+					if (this->mConnection[i].getSocket() == -1)
+					{
+						clt = &this->mConnection[i];
+						break ;
+					}
+				}
+
+				if (clt == NULL)
+					continue ;
+
 				svr = this->findServer(curEvent->ident); 
 				if (svr == -1)
 					throw ManagerException("Cannot find Server");
@@ -431,11 +429,13 @@ void WebServ::activate()
 				if (clt_socket == -1)
 					throw ManagerException("accpet connection failed");
 
+				this->mLogger.putAccess("connect connection");
+
 				if (fcntl(clt_socket, F_SETFL, O_NONBLOCK) == -1)
 					throw ManagerException("fcntl connection socket fialed");
 
-				this->mConnection.push_back(Connection(clt_socket, this->mServers[svr].getPort()));
-				this->mKqueue.addEvent(clt_socket, &(this->mConnection.back()));
+				clt->setAccept(clt_socket, this->mServers[svr].getPort());
+				this->mKqueue.addEvent(clt_socket, clt);
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EV_ERROR))
@@ -472,7 +472,7 @@ void WebServ::activate()
 				{
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
-					this->closeConnection(clt);
+					clt->closeSocket();
 				}
 			}
 		} 
@@ -487,7 +487,7 @@ void WebServ::activate()
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
 				clt->printAll();
-				this->closeConnection(clt);
+				clt->closeSocket();
 			}
 		}
 		catch (RedirectionException & e)
@@ -499,7 +499,7 @@ void WebServ::activate()
 				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->mLogger.putAccess("send response");
 				clt->printAll();
-				this->closeConnection(clt);
+				clt->closeSocket();
 			}
 		}
 		catch(ManagerException & e)
@@ -509,26 +509,25 @@ void WebServ::activate()
 			if (clt != NULL)
 			{
 				clt->printAll();
-				this->closeConnection(clt);
+				clt->closeSocket();
 			}
 		}
 	}
+	std::cout << "event end!" << std::endl;
 
 
-	std::vector<Connection>::iterator it = this->mConnection.begin();
-	while (it != this->mConnection.end())
+	for (size_t i = 0; i < EVENT_MAX; i++)
 	{
-		if (it->checkOvertime())
+		if (this->mConnection[i].getSocket() != -1
+				&& this->mConnection[i].checkOvertime())
 		{
-			int svr = this->findServer(*it);
-			this->mSender.sendMessage(it->getSocket(), this->mServers[svr].getErrorPage(408, this->mResponseCodeMSG[408]));
-			this->mLogger.putAccess("close connection");
-			it->closeSocket();
-			it = this->mConnection.erase(it);
+			int svr = this->findServer(this->mConnection[i]);
+			this->mSender.sendMessage(this->mConnection[i].getSocket(), this->mServers[svr].getErrorPage(408, this->mResponseCodeMSG[408]));
+			this->mConnection[i].closeSocket();
+			this->mLogger.putAccess("Time out: close connection");
 		}
-		else
-			it++;
 	}
+	std::cout << "run end!" << std::endl;
 }
 
 void WebServ::parseRequest(Connection *clt, Server *svr)

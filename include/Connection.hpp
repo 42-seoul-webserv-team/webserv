@@ -5,7 +5,6 @@
 # include <unistd.h>
 # include <vector>
 # include <signal.h>
-
 # include "Server.hpp"
 # include "Request.hpp"
 # include "Response.hpp"
@@ -13,8 +12,6 @@
 # include "enum.hpp"
 # include "Kqueue.hpp"
 # include "value.hpp"
-
-// juhyelee - ConnectionException
 # include "ConnectionException.hpp"
 
 class Connection
@@ -23,26 +20,22 @@ class Connection
 		int mSocket;
 		int mServerPort;
 		int mServer;
-		Request mRequest;
-		Response mResponse;
 		std::string  mAbsolutePath;
-
-		std::vector<std::vector <std::string> > mUpload; // 1.0 merge 모름
-
 		std::string mRemainStr;
-		struct timeval mTime;
-
-		void renewTime(void);
-
-		//juhyelee - need for run
-		eStatus mStatus;
-		eProcessType mProcType;
-		
+		std::vector<std::vector <std::string> > mUpload;
 		std::string mCGI;
-
 		int mCGIfd[2];
 		int mCGIproc;
+		
+		Request mRequest;
+		Response mResponse;
+		eStatus mStatus;
+		eProcessType mProcType;
+
+		struct timeval mTime;
 		struct timeval mCGIstart;
+		
+		void renewTime(void);
 
 	public:
 		Connection(void);
@@ -53,12 +46,21 @@ class Connection
 		int getServer(void);
 		eStatus getStatus(void);
 		int getPort(void);
-
 		std::string getHost(void);
 		std::string getUrl(void);
 		eMethod getMethod(void);
 		eProcessType getType(void);
+		eStatus getReadStatus(void) const;
+		eMethod getMethod(void) const;
+		eProcessType getProcType(void) const;
+		eStatus getStatus(void) const;
+		int getCGIproc(void) const;
+		std::string getContentType(void);
+		std::string getReqBody(void) const;
+		Response getResponse(void) const;
+		char * getAbsolutePath(void) const;
 
+		void setAccept(int socket, int port);
 		void setServer(int svr);
 		void setStatus(eStatus status);
 		void setAbsolutePath(std::string const & root, std::string const & url, std::string const & type);
@@ -77,15 +79,6 @@ class Connection
 		bool checkOvertime(void);
 		bool checkStatus(void);
 
-		eStatus getReadStatus(void) const;
-		eMethod getMethod(void) const;
-		eProcessType getProcType(void) const;
-		eStatus getStatus(void) const;
-		int getCGIproc(void) const;
-		std::string getContentType(void);
-		std::string getReqBody(void) const;
-		Response getResponse(void) const;
-		char * getAbsolutePath(void) const;
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
 		void fillRequestCGI(void);
@@ -93,7 +86,6 @@ class Connection
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void isTimeOver(void) const;
 		void uploadFiles(void);
-		// add 1.0 merge
 
 		void printAll(void);
 };

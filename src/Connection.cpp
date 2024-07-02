@@ -261,7 +261,6 @@ Connection::Connection(void)
 	this->mServer = -1;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
-	this->renewTime();
 }
 
 Connection::Connection(int socket, int svr_port)
@@ -281,6 +280,13 @@ Connection::~Connection(void)
 	this->mUpload.clear();
 	this->mRemainStr.clear();
 	this->mCGI.clear();
+}
+
+void Connection::setAccept(int socket, int port)
+{
+	this->mSocket = socket;
+	this->mServerPort = port;
+	this->renewTime();
 }
 
 void Connection::renewTime(void)
@@ -321,11 +327,14 @@ void Connection::readRequest(void)
 	if (this->mRequest.getStatus() == COMPLETE)
 		return ;
 
+	std::cout << this->mSocket << " read" << std::endl;
 	char buffer[BUFFER_SIZE];
 	int length = read(this->mSocket, buffer, BUFFER_SIZE);
 
-  	if (length <= 0)
+  	if (length == 0)
 		return ;
+	else if (length == -1)
+		throw ManagerException("Connection closed, Cannot read");
 
 	this->renewTime();
 	std::string read_str = this->mRemainStr + buffer;
@@ -357,7 +366,20 @@ void Connection::readRequest(void)
 void Connection::closeSocket(void)
 {
 	if (this->mSocket != -1)
-		::close(this->mSocket);
+	{
+		close(this->mSocket);
+		this->mSocket = -1;
+	}
+	this->mServerPort = -1;
+	this->mServer = -1;
+	this->mRequest.clear();
+	this->mResponse.clear();
+	this->mAbsolutePath.clear();
+	this->mUpload.clear();
+	this->mRemainStr.clear();
+	this->mStatus = STARTLINE;
+	this->mProcType = NONE;
+	this->mCGI.clear();
 }
 
 bool Connection::checkMethod(eMethod method)
