@@ -387,7 +387,6 @@ int WebServ::findServer(Connection &clt)
 
 void WebServ::activate()
 {
-	std::cout << "run!" << std::endl;
 	if (this->mEnvp.empty())
 		return ;
 
@@ -395,7 +394,6 @@ void WebServ::activate()
 
 	while (true)
 	{
-		std::cout << "event!" << std::endl;
 		int svr = -1;
 
 		struct kevent *curEvent = this->mKqueue.getEvent();
@@ -513,8 +511,6 @@ void WebServ::activate()
 			}
 		}
 	}
-	std::cout << "event end!" << std::endl;
-
 
 	for (size_t i = 0; i < EVENT_MAX; i++)
 	{
@@ -527,7 +523,6 @@ void WebServ::activate()
 			this->mLogger.putAccess("Time out: close connection");
 		}
 	}
-	std::cout << "run end!" << std::endl;
 }
 
 void WebServ::parseRequest(Connection *clt, Server *svr)
