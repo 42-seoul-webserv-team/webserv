@@ -120,6 +120,27 @@ void Location::clearMethod(void)
 	this->mMethod.clear();
 }
 
+std::string Location::parseUrl(std::vector<std::string> & url)
+{
+	size_t idx = 0;
+	std::string ret = "/";
+
+	while (idx < url.size())
+	{
+		if (this->mPath[idx] != url[idx])
+			break ;
+		idx++;
+	}
+	
+	while (idx < url.size())
+	{
+		ret += url[idx] + "/";
+		idx++;
+	}
+	ret.pop_back();
+	return ret;
+}
+
 bool Location::checkIndexFile(std::vector<std::string> & url)
 {
 	if (this->mIndex.empty() || this->mPath.size() != url.size())

@@ -542,6 +542,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		Location *lct = svr->findLocation(url);
 		if (lct == NULL)
 			throw ConnectionException("Can't find Location", NOT_FOUND);
+		std::string str_url = lct->parseUrl(url);
 
 		if (!lct->checkMethod(clt->getMethod()))
 			throw ConnectionException("Not allowed Method in Location", MATHOD_NOT_ALLOWED);
@@ -561,22 +562,22 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		}
 		else if (lct->checkAutoindex())
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), "text/html");
-			std::string type = this->findMIMEType(clt->getUrl());
+			clt->setAbsolutePath(lct->getRoot(), str_url, "text/html");
+			std::string type = this->findMIMEType(str_url);
 			if (type != "application/octet-stream")
 				clt->setContentType(type);
 
 			clt->setType(AUTOINDEX);
 		}
-		else if (lct->checkCGI(clt->getUrl()))
+		else if (lct->checkCGI(str_url))
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), str_url, this->findMIMEType(str_url));
 			clt->setType(CGI);
-			clt->setCGI(lct->getCGI(clt->getUrl()));
+			clt->setCGI(lct->getCGI(str_url));
 		}
 		else
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), str_url, this->findMIMEType(str_url));
 			clt->setType(FILES);
 		}
 		clt->setStatus(HEADER);

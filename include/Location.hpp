@@ -44,6 +44,7 @@ class Location
 		void setUpload(std::string const & dir);
 		void addCgi(std::string const & extension, std::string const & cgi);
 		void clearMethod(void);
+		std::string parseUrl(std::vector<std::string> & url);
 
 		void printAll(void);
 };
