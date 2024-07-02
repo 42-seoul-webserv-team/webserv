@@ -80,6 +80,8 @@ void Request::setStartLine(std::string const & line)
 		this->mMethod = POST;
 	else if (words[0] == "DELETE")
 		this->mMethod = DELETE;
+	else if (words[0] == "HEAD")
+		this->mMethod = HEAD;
 	else
 		throw ConnectionException("Unkwon Method", BAD_REQUEST);
 
