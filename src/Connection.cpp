@@ -65,7 +65,10 @@ void Connection::fillRequest(void)
 	if (!body.empty())
 		body.pop_back();
 
-	this->mResponse.setBody(body);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(body);
+	}
 	file.close();
 }
 
@@ -79,7 +82,10 @@ void Connection::fillRequest(std::vector<std::string> & list)
 		body += "<li><a href=\"" + *it + "\">" + *it + "</a></li>";
 	}
 	body += "</ul></body></html>";
-	this->mResponse.setBody(body);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(body);
+	}
 }
 
 void Connection::fillRequestCGI(void)
@@ -92,7 +98,10 @@ void Connection::fillRequestCGI(void)
 		std::string str = buffer;
 		ret += str;
 	}
-	this->mResponse.setBody(ret);
+	if (this->getMethod() != HEAD)
+	{
+		this->mResponse.setBody(ret);
+	}
 }
 
 void Connection::removeFile(void) const
