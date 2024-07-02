@@ -46,7 +46,7 @@ std::string Location::getCGI(std::string const & url)
 		return "";
 
 	size_t pos = url.rfind('.');
-	if (pos == std::string::npos)
+	if (pos == std::string::npos || pos == 0)
 		return "";
 
 	std::string extension = url.substr(pos + 1);
@@ -123,7 +123,7 @@ void Location::clearMethod(void)
 
 bool Location::checkIndexFile(std::vector<std::string> & url)
 {
-	if (this->mPath.size() != url.size())
+	if (this->mIndex.empty() || this->mPath.size() != url.size())
 		return false;
 
 	for (size_t i = 0; i < this->mPath.size(); i++)

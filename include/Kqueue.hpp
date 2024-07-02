@@ -4,6 +4,7 @@
 # include <sys/event.h>
 # include <unistd.h>
 # include <vector>
+# include "ManagerExcption.hpp"
 # include "value.hpp"
 
 class Kqueue

@@ -3,6 +3,7 @@
 Request::Request(void)
 {
 	this->mReadStatus = STARTLINE;
+	this->mMethod = UNKNOWN;
 	this->mContentChunk = false;
 	this->mContentLength = -1;
 	this->mHeaderLength = 0;
@@ -10,7 +11,25 @@ Request::Request(void)
 
 Request::~Request(void)
 {
-	mHeader.clear();
+	this->mUrl.clear();
+	this->mQuery.clear();
+	this->mBody.clear();
+	this->mContentType.clear();
+	this->mHeader.clear();
+}
+
+void Request::clear(void)
+{
+	this->mReadStatus = STARTLINE;
+	this->mMethod = UNKNOWN;
+	this->mContentChunk = false;
+	this->mContentLength = -1;
+	this->mContentType.clear();
+	this->mHeaderLength = 0;
+	this->mUrl.clear();
+	this->mQuery.clear();
+	this->mBody.clear();
+	this->mHeader.clear();
 }
 
 eMethod Request::getMethod(void) const
@@ -32,7 +51,6 @@ std::string Request::findHeader(std::string const & key)
 {
 	return this->mHeader[key];
 }
-
 void Request::set(std::string const & line)
 {
 	if (this->mReadStatus == STARTLINE)
@@ -54,7 +72,7 @@ void Request::setStartLine(std::string const & line)
 	std::vector<std::string> words = ft::split(line);
 
 	if (words.empty() || words.size() != 3)
-		throw std::runtime_error("Start Line Form not valid"); // connectionException(400);
+		throw ConnectionException("Start Line Form not valid", BAD_REQUEST);
 
 	if (words[0] == "GET")
 		this->mMethod = GET;
@@ -63,11 +81,10 @@ void Request::setStartLine(std::string const & line)
 	else if (words[0] == "DELETE")
 		this->mMethod = DELETE;
 	else
-		throw std::runtime_error("Unkown Method"); // connectionException(400);
-
+		throw ConnectionException("Unkwon Method", BAD_REQUEST);
 
 	if (words[1].size() > URL_LENGTH_MAX)
-		throw std::runtime_error("URL too long"); // connectionException(414);
+		throw ConnectionException("URL too Long", REQUEST_URI_TOO_LONG);
 
 	size_t pos = words[1].find('?');
 	if (pos != std::string::npos)
@@ -82,12 +99,12 @@ void Request::setStartLine(std::string const & line)
 	if (pos != std::string::npos)
 	{
 		if (words[2].substr(0, pos) != "HTTP")
-			throw std::runtime_error("Version not valid"); // connectionException(400);
+			throw ConnectionException("Version not found", BAD_REQUEST);
 		if (words[2].substr(pos + 1) != "1.1")
-			throw std::runtime_error("Version not valid"); // connectionException(505);
+			throw ConnectionException("Version not valid", HTTP_VERSION_NOT_SUP);
 	}
 	else
-		throw std::runtime_error("Version not valid"); // connectionException(400);
+		throw ConnectionException("Version not found", BAD_REQUEST);
 
 	this->mReadStatus = HEADER;
 }
@@ -95,12 +112,12 @@ void Request::setStartLine(std::string const & line)
 void Request::setHeader(std::string const & line)
 {
 	if (this->mHeaderLength > HEADER_LENGTH_MAX)
-		throw std::runtime_error("Header Lenghth too long"); // connectionException(400);
+		throw ConnectionException("Header Lenghth too long", BAD_REQUEST);
 
 	if (line.empty())
 	{
 		if (this->findHeader("Host").empty())
-			throw std::runtime_error("Need Host Header"); // connectionException(400);
+			throw ConnectionException("Need Host Header", BAD_REQUEST);
 		if (this->mMethod == POST)
 		{
 			if (!this->findHeader("Content-Length").empty())
@@ -111,13 +128,13 @@ void Request::setHeader(std::string const & line)
 				} 
 				catch (int e) 
 				{
-					throw std::runtime_error("Content-Length is not number"); // connectionException(400);
+					throw ConnectionException("Content-Length is not number", BAD_REQUEST);
 				}
 			}
 			else if (this->findHeader("Transfer-Encoding") == "chunked")
 				this->mContentChunk = true;
 			else
-				throw std::runtime_error("Need Content-Legnth"); // connectionException(411);
+				throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
 			this->mReadStatus = BODY;
 		}
 		else
@@ -150,7 +167,7 @@ void Request::setBody(std::string const & line)
 			}
 			catch (int e)
 			{
-				throw std::runtime_error("Transfer Chunk Content-length is not number"); // connectionException(400);
+				throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST);
 			}
 			if (this->mContentLength == 0
 					&& this->findHeader("Trailer").empty())
@@ -245,4 +262,14 @@ void Request::printAll(void)
 		std::cout << "\t\t\t" << it->first << ": " << it->second << std::endl;
 	std::cout << "\t\t}" << std::endl;
 	std::cout << "\t\tBody: " << this->mBody << std::endl;
+}
+
+int Request::getContentLength(void) const
+{
+	return this->mContentLength;
+}
+
+std::string Request::getContentType(void) const
+{
+	return this->mContentType;
 }

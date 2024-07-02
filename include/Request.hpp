@@ -3,6 +3,7 @@
 
 # include <string>
 # include <map>
+# include "ConnectionException.hpp"
 # include "enum.hpp"
 # include "ft.hpp"
 # include "value.hpp"
@@ -31,17 +32,21 @@ class Request
 		Request(void);
 		~Request(void);
 
+		void clear(void);
+
 		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;
 		std::string getBody(void) const;
-
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
-
 		bool checkBodyComplete(void);
 
 		void printAll(void);
+
+		// juhyelee - add cgi env
+		int getContentLength(void) const;
+		std::string getContentType(void) const;
 };
 
 #endif

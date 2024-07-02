@@ -17,6 +17,9 @@ class Response
 	public:
 		Response(void);
 		~Response(void);
+
+		void clear(void);
+
 		std::string getCode(void);
 		std::string getStatusMsg(void);
 		std::string getContentType(void);

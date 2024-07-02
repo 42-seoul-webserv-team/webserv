@@ -36,9 +36,11 @@ std::string	HTTPSender::makeMessage(Response response)
 	message += "Server: " + response.getServerName() + CRLF;
 	message += "Connection: Closed\r\n";
 
-	message += response.getContentLength() + CRLF;
-	if (atoi(response.getContentLength().c_str()) != 0)
-		message += response.getContentType() + CRLF;
+	message += "Content-Length: " + response.getContentLength() + CRLF;
+	message += "Content-Type: " + response.getContentType() + CRLF;
+
+	//if (atoi(response.getContentLength().c_str()) != 0)
+	//	message += response.getContentType() + CRLF;
 
 	// Blank line
 	message += CRLF;
@@ -62,10 +64,11 @@ std::string	HTTPSender::makeMessage(std::string location, std::string serverName
 	message.reserve(800);
 
 	message += "HTTP/1.1 301 Moved Permanently\r\n";
-	message += "Location: " + location + CRLF;
 	message += "Server: " + serverName + CRLF;
-
+	message += this->getDate();
+	message += "Location: " + location + CRLF;
 	message += CRLF;
+
 	return (message);
 }
 
