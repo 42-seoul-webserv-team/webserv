@@ -37,7 +37,10 @@ std::string Server::getServerName(void)
 	return this->mServerName;
 }
 
-
+int Server::getBodySize(void)
+{
+	return this->mBodySize;
+}
 
 Location *Server::getLocation(size_t idx)
 {

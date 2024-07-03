@@ -633,11 +633,16 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		}
 	}
 
-	if (clt->getStatus() == BODY && clt->checkStatus())
+	if (clt->getStatus() == BODY)
 	{
-		if (clt->getType() == UPLOAD)
-			clt->setUpload();
-		clt->setStatus(COMPLETE);
+		if (clt->getBodySize() > svr->getBodySize())
+			throw ConnectionException("Request Body Too Long" ,REQUEST_ENTITY_TOO_LONG);
+		if (clt->checkStatus())
+		{
+			if (clt->getType() == UPLOAD)
+				clt->setUpload();
+			clt->setStatus(COMPLETE);
+		}
 	}
 }
 

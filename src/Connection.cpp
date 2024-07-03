@@ -13,6 +13,11 @@ eStatus Connection::getReadStatus(void) const
 	return this->mRequest.getStatus();
 }
 
+int	Connection::getBodySize(void)
+{
+	return this->mRequest.getBodySize();
+}
+
 eMethod Connection::getMethod(void) const
 {
 	return this->mRequest.getMethod();
@@ -355,7 +360,7 @@ void Connection::readRequest(void)
 		return ;
 
 	char buffer[BUFFER_SIZE];
-	int length = read(this->mSocket, buffer, BUFFER_SIZE);
+	int length = read(this->mSocket, buffer, BUFFER_SIZE - 1);
 
   	if (length == 0)
 		return ;

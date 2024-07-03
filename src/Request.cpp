@@ -70,6 +70,11 @@ void Request::set(std::string const & line)
 	}
 }
 
+int Request::getBodySize(void)
+{
+	return this->mBody.size();
+}
+
 void Request::setStartLine(std::string const & line)
 {
 	std::vector<std::string> words = ft::split(line);

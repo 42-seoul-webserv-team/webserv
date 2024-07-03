@@ -34,6 +34,7 @@ class Request
 
 		void clear(void);
 
+		int getBodySize(void);
 		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;

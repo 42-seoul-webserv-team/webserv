@@ -60,6 +60,8 @@ class Connection
 		std::string getReqBody(void) const;
 		Response getResponse(void) const;
 		char * getAbsolutePath(void) const;
+		int getBodySize(void);
+		std::string getQuery(void);
 
 		void setAccept(int socket, int port);
 		void setServer(int svr);
