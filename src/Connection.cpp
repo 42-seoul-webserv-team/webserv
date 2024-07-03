@@ -147,8 +147,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	else if (this->mCGIproc == 0)
 	{
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
-		close(this->mCGIfd[0]);
-		close(this->mCGIfd[1]);
+		dup2(this->mCGIfd[0], STDIN_FILENO);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
@@ -156,9 +155,11 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
-		exit(ret);
+		close(this->mCGIfd[0]);
+		close(this->mCGIfd[1]);
+		// CGIenvp 메모리 누수를?
+		std::exit(ret);
 	}
-
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[1]);
 	kque.addEvent(this->mCGIfd[0], this);
