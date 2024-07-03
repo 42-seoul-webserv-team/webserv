@@ -169,9 +169,12 @@ void Request::setHeader(std::string const & line)
 
 void Request::setBody(std::string const & line)
 {
+	if (line.empty())
+		return ;
+
 	if (this->mContentChunk)
 	{
-		if (this->mContentLength == -1)
+		if (this->mContentLength <= 0)
 		{
 			try
 			{
@@ -181,16 +184,13 @@ void Request::setBody(std::string const & line)
 			{
 				throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST);
 			}
-			if (this->mContentLength == 0
-					&& this->findHeader("Trailer").empty())
+			if (this->mContentLength == 0)
 				this->mReadStatus = COMPLETE;
 		}
 		else
 		{
-			if (this->mContentLength > 0)
-				this->mBody += line + "\r\n";
-			else
-				this->mReadStatus = COMPLETE;
+			this->mBody += line + "\r\n";
+			this->mContentLength -= static_cast<int>(line.size());
 		}
 	}
 	else
