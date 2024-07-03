@@ -460,7 +460,7 @@ void WebServ::activate()
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
-				clt->printAll();
+				//clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
