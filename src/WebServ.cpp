@@ -79,7 +79,7 @@ void WebServ::runPOST(Connection * clt)
 	}
 	else if (procType == AUTOINDEX)
 	{
-		throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
+		throw ConnectionException("Forbidden", FORBIDDEN);
 	}
 	else if (procType == CGI)
 	{
@@ -567,6 +567,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			{
 				clt->setType(CGI);
 				clt->setCGI(lct->getCGI(clt->getAbsolutePath()));
+				clt->setContentType("text/html");
 			}
 			else
 				clt->setType(FILES);
@@ -574,15 +575,30 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		else if (lct->checkAutoindex())
 		{
 			clt->setAbsolutePath(lct->getRoot(), str_url, "text/html");
-			std::string type = this->findMIMEType(str_url);
-			if (type != "application/octet-stream")
-				clt->setContentType(type);
-
-			clt->setType(AUTOINDEX);
+			std::string abs_path = clt->getAbsolutePath();
+			DIR * dir = opendir(abs_path.c_str());
+			if (dir == NULL)
+			{
+				if (lct->checkCGI(abs_path))
+				{
+					clt->setType(CGI);
+					clt->setCGI(lct->getCGI(abs_path));
+				}
+				else
+				{
+					clt->setType(FILES);
+					clt->setContentType(this->findMIMEType(abs_path));
+				}
+			}
+			else
+			{
+				closedir(dir);
+				clt->setType(AUTOINDEX);
+			}
 		}
 		else if (lct->checkCGI(str_url))
 		{
-			clt->setAbsolutePath(lct->getRoot(), str_url, this->findMIMEType(str_url));
+			clt->setAbsolutePath(lct->getRoot(), str_url, "text/html");
 			clt->setType(CGI);
 			clt->setCGI(lct->getCGI(str_url));
 		}
