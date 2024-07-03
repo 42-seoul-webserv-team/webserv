@@ -34,7 +34,16 @@ void WebServ::runGET(Connection * clt)
 	eProcessType procType = clt->getProcType();
 	if (procType == FILES)
 	{
-		clt->fillRequest();
+		DIR * dir = opendir(clt->getAbsolutePath());
+		if (dir == NULL)
+		{
+			clt->fillRequest();
+		}
+		else
+		{
+			closedir(dir);
+			throw ConnectionException("Is not file", NOT_FOUND);
+		}
 	}
 	else if (procType == AUTOINDEX)
 	{
