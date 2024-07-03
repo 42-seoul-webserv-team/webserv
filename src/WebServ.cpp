@@ -402,6 +402,7 @@ void WebServ::activate()
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == NULL)
 			break ;
+
 		if (curEvent->udata == NULL
 				&& (curEvent->flags & EV_ERROR))
 			throw ManagerException("Server socket failed");
@@ -447,10 +448,10 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
-				clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
+				clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
@@ -476,6 +477,8 @@ void WebServ::activate()
 					clt->closeSocket();
 					this->mLogger.putAccess("close connection");
 				}
+				if (clt->checkOvertime())
+					throw ConnectionException("Request Timeout", REQUEST_TIMEOUT);
 			}
 		} 
 		catch (ConnectionException & e)
@@ -523,10 +526,9 @@ void WebServ::activate()
 		if (this->mConnection[i].getSocket() != -1
 				&& this->mConnection[i].checkOvertime())
 		{
-			int svr = this->findServer(this->mConnection[i]);
-			this->mSender.sendMessage(this->mConnection[i].getSocket(), this->mServers[svr].getErrorPage(408, this->mResponseCodeMSG[408]));
 			this->mConnection[i].closeSocket();
-			this->mLogger.putAccess("Time out: close connection");
+			this->mLogger.putError("Request Timeout");
+			this->mLogger.putAccess("close connection");
 		}
 	}
 }
@@ -586,7 +588,6 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 	if (clt->getStatus() == HEADER && clt->checkStatus())
 	{
 		clt->setStatus(COMPLETE);
-		clt->printAll();
 		if (clt->getMethod() == POST)
 		{
 			if (clt->checkUpload())
@@ -595,9 +596,11 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 				Location *lct = svr->findLocation(url);
 				if (lct == NULL)
 					throw ConnectionException("Can't find Location", NOT_FOUND);
+		
+				std::string str_url = lct->parseUrl(url);
 
 				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
-				clt->setAbsolutePath(clt->getAbsolutePath(), clt->getUrl(), "text/html");
+				clt->setAbsolutePath(clt->getAbsolutePath(), str_url, "text/html");
 
 				clt->setType(UPLOAD);
 			}

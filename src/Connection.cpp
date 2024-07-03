@@ -248,7 +248,7 @@ void Connection::isTimeOver(void) const
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
-	if (((now.tv_usec - this->mCGIstart.tv_usec) / 1000000.0) > CGI_OVERTIME)
+	if ((now.tv_sec - this->mCGIstart.tv_sec ) + (( now.tv_usec - this->mCGIstart.tv_usec ) / 1000000) > CGI_OVERTIME)
 	{
 		kill(this->getCGIproc(), SIGKILL);
 		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT);
@@ -405,7 +405,7 @@ bool Connection::checkOvertime(void)
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
-	if (now.tv_usec - this->mTime.tv_usec > REQ_OVERTIME)
+	if ((now.tv_sec - this->mTime.tv_sec ) + (( now.tv_usec - this->mTime.tv_usec ) / 1000000) > REQ_OVERTIME)
 		return true;
 	return false;
 }
