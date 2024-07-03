@@ -1,6 +1,7 @@
 #include "Connection.hpp"
 #include <fcntl.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -76,7 +77,26 @@ void Connection::fillRequest(std::vector<std::string> & list)
 	body += "<body><h1>" + title + "<h1><ul>";
 	for (std::vector<std::string>::iterator it = list.begin(); it != list.end(); it++)
 	{
-		body += "<li><a href=\"" + *it + "\">" + *it + "</a></li>";
+		std::string el = this->mAbsolutePath + "/" + *it;
+		std::string uri = this->mRequest.getUrl();
+		if (uri[uri.size() - 1] == '/')
+		{
+			uri += *it;
+		}
+		else
+		{
+			uri = uri + "/" + *it;
+		}
+		DIR * dir = opendir(el.c_str());
+		if (dir == NULL)
+		{
+			body += "<li><a href=\"" + uri + "\">" + *it + "</a></li>";
+		}
+		else
+		{
+			closedir(dir);
+			body += "<li><a href=\"" + uri + "/\">" + *it + "/</a><l/li>";
+		}
 	}
 	body += "</ul></body></html>";
 	this->mResponse.setBody(body);
