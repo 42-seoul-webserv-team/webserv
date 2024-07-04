@@ -109,17 +109,22 @@ void Connection::fillRequest(std::vector<std::string> & list)
 
 void Connection::fillRequestCGI(void)
 {
-	char buffer[1024];
-	std::string ret = "";
+	char buffer[BUFFER_SIZE];
+	std::string ret;
 	
-	waitpid(-1, NULL, 0);
-	while (read(this->mCGIfd[1], buffer, 1023) > 0)
+	while (true)
 	{
-		buffer[1023] = '\0';
-		std::string str = buffer;
-		ret += str;
+		int length = read(this->mCGIfd[1], buffer, BUFFER_SIZE - 1);
+		if (length <= 0)
+			break ;
+		buffer[length] = '\0';
+		ret += buffer;
 	}
 	this->mResponse.setBody(ret);
+	close(this->mCGIfd[1]);
+	this->mCGIfd[1] = -1;
+	this->mCGIproc = -1;
+	this->mStatus = COMPLETE;
 }
 
 void Connection::removeFile(void) const
@@ -143,11 +148,10 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	{
 		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
-	fcntl(this->mCGIfd[0], O_NONBLOCK);
-	fcntl(this->mCGIfd[1], O_NONBLOCK);
+	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
+	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
 
-	std::string body = this->mRequest.getBody();
-	write(this->mCGIfd[0], body.c_str(), body.size());
+	write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
 
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
@@ -172,7 +176,8 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[0]);
-	kque.addEvent(this->mCGIfd[1], this);
+	this->mCGIfd[0] = -1;
+	kque.addCGI(this->mCGIfd[1], this);
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
@@ -281,7 +286,6 @@ void Connection::isTimeOver(void) const
 	gettimeofday(&now, NULL);
 	if ((now.tv_sec - this->mCGIstart.tv_sec ) + (( now.tv_usec - this->mCGIstart.tv_usec ) / 1000000) > CGI_OVERTIME)
 	{
-		kill(this->getCGIproc(), SIGKILL);
 		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT);
 	}
 }
@@ -293,6 +297,9 @@ Connection::Connection(void)
 	this->mServer = -1;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
+	this->mCGIfd[0] = -1;
+	this->mCGIfd[1] = -1;
+	this->mCGIproc = -1;
 }
 
 Connection::Connection(int socket, int svr_port)
@@ -302,12 +309,14 @@ Connection::Connection(int socket, int svr_port)
 	this->mServer = -1;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
+	this->mCGIfd[0] = -1;
+	this->mCGIfd[1] = -1;
+	this->mCGIproc = -1;
 	this->renewTime();
 }
 
 Connection::~Connection(void)
 {
-	this->mServer = -1;
 	this->mAbsolutePath.clear();
 	this->mUpload.clear();
 	this->mRemainStr.clear();
@@ -367,9 +376,7 @@ void Connection::readRequest(void)
 	char buffer[BUFFER_SIZE];
 	int length = read(this->mSocket, buffer, BUFFER_SIZE - 1);
 
-  	if (length == 0)
-		return ;
-	else if (length == -1)
+	if (length == -1)
 		throw ManagerException("Connection closed, Cannot read");
 
 	buffer[length] = '\0';
@@ -379,15 +386,8 @@ void Connection::readRequest(void)
 	size_t pos = read_str.find('\n');
 	while (pos != std::string::npos)
 	{
-		std::string line = read_str.substr(0, pos);
-	
-		if (line.back() == '\r')
-		{
-			line.pop_back();
-			read_str.erase(0, pos + 1);
-		}
-		else
-			read_str.erase(0, pos);
+		std::string line = read_str.substr(0, pos + 1);
+		read_str.erase(0, pos + 1);
 		
 		this->mRequest.set(line);
 
@@ -401,6 +401,11 @@ void Connection::readRequest(void)
 	}
 
 	this->mRemainStr = read_str;
+	if (!this->mRemainStr.empty() && this->mRequest.getStatus() == BODY)
+	{
+		this->mRequest.set(this->mRemainStr);
+		this->mRemainStr.clear();
+	}
 }
 
 void Connection::closeSocket(void)
@@ -409,6 +414,21 @@ void Connection::closeSocket(void)
 	{
 		close(this->mSocket);
 		this->mSocket = -1;
+	}
+	if (this->mCGIproc != -1)
+	{
+		kill(this->mCGIproc, SIGKILL);
+		this->mCGIproc = -1;
+	}
+	if (this->mCGIfd[0] != -1)
+	{
+		close(this->mCGIfd[0]);
+		this->mCGIfd[0] = -1;
+	}
+	if (this->mCGIfd[1] != -1)
+	{
+		close(this->mCGIfd[1]);
+		this->mCGIfd[1] = -1;
 	}
 	this->mServerPort = -1;
 	this->mServer = -1;
@@ -587,6 +607,11 @@ void Connection::setCGI(std::string const & cgi)
 	this->mCGI = cgi;
 }
 
+bool Connection::checkReadDone(void)
+{
+	return (this->mStatus == COMPLETE && this->mRequest.getStatus() == COMPLETE);
+}
+
 # include <iostream>
 
 void Connection::printAll(void)
@@ -674,7 +699,7 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 			envp["REQUEST_METHOD"] = "GET";
 			break;
 		case POST :
-			envp["CONTENT_LENGTH"] = this->mRequest.findHeader("Content-Length");
+			envp["CONTENT_LENGTH"] = ft::toString(this->mRequest.getBodySize(), 10);
 			envp["REQUEST_METHOD"] = "POST";
 			envp["CONTENT_TYPE"] = this->mRequest.findHeader("Content-Type");
 			break;
@@ -686,8 +711,9 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 			break;
 	}
 
-	// envp["PATH_INFO"] = this->mRequest.getUrl();
+	envp["PATH_INFO"] = this->mRequest.getUrl();
 	
-	envp["PATH_INFO"] = this->mAbsolutePath;
-	envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
+	// envp["PATH_INFO"] = this->mAbsolutePath;
+	 envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
+	// envp["REQUEST_URI"] = this->mAbsolutePath;
 }

@@ -129,7 +129,7 @@ void Request::setHeader(std::string const & line)
 	if (this->mHeaderLength > HEADER_LENGTH_MAX)
 		throw ConnectionException("Header Lenghth too long", BAD_REQUEST);
 
-	if (line.empty())
+	if (line == "\r\n")
 	{
 		if (this->findHeader("Host").empty())
 			throw ConnectionException("Need Host Header", BAD_REQUEST);
@@ -203,7 +203,7 @@ void Request::setBody(std::string const & line)
 		int length = line.size();
 		if (length < this->mContentLength)
 		{
-			this->mBody += line + "\r\n";
+			this->mBody += line;
 			this->mContentLength -= length;
 		}
 		else

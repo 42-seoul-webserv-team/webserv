@@ -89,6 +89,7 @@ class Connection
 		void isTimeOver(void) const;
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void uploadFiles(void);
+		bool checkReadDone(void);
 
 		void printAll(void);
 		

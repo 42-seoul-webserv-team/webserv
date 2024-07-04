@@ -23,6 +23,8 @@ class Kqueue
 		int checkEvent(void);
 		struct kevent *getEvent(void);
 		void addEvent(int fd, void *udata);
+		void addCGI(int fd, void *udata);
+		void changeEvent(int fd, void *udata);
 };
 
 #endif

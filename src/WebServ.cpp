@@ -1,10 +1,4 @@
-//Webserv
 #include "WebServ.hpp"
-#include "enum.hpp"
-#include "Connection.hpp"
-#include <cstdio>
-#include <dirent.h>
-#include <signal.h>
 
 void WebServ::run(Connection * clt)
 {
@@ -450,38 +444,45 @@ void WebServ::activate()
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EV_ERROR))
-				throw ManagerException("Connection socket failed");
+			{
+				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
+				else if (clt->getSocket() != -1)
+					throw ManagerException("Connection socket error");
+				continue ;
+			}
 
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
+				clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
-				//clt->printAll();
+				if (clt->checkReadDone())
+					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
+				clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				clt->printAll();
 				if (clt->getStatus() == PROC_CGI)
 				{
 					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
 					else
-					{
 						clt->fillRequestCGI();
-						clt->setStatus(COMPLETE);
-						close(curEvent->ident);
-					}
 				}
 				else
 					this->run(clt);
+				clt->printAll();
 				if (clt->checkComplete())
 				{
-					clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
@@ -810,6 +811,7 @@ void WebServ::validConfig(std::string contents)
 			hostNameFlag = false;
 			serverNameFlag = false;
 			errPageFlag = false;
+			limitBodySizeFlag = false;
 		}
 		else if (line.front() == BLOCK_CLOSE
 				&& locationFlag == true
