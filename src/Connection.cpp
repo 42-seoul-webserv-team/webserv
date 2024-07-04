@@ -111,7 +111,9 @@ void Connection::fillRequestCGI(void)
 {
 	char buffer[1024];
 	std::string ret = "";
-	while (read(this->mCGIfd[0], buffer, 1023) > 0)
+	
+	waitpid(-1, NULL, 0);
+	while (read(this->mCGIfd[1], buffer, 1023) > 0)
 	{
 		buffer[1023] = '\0';
 		std::string str = buffer;
@@ -144,6 +146,9 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	fcntl(this->mCGIfd[0], O_NONBLOCK);
 	fcntl(this->mCGIfd[1], O_NONBLOCK);
 
+	std::string body = this->mRequest.getBody();
+	write(this->mCGIfd[0], body.c_str(), body.size());
+
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
 	{
@@ -151,8 +156,8 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
-		dup2(this->mCGIfd[1], STDOUT_FILENO);
-		dup2(this->mCGIfd[0], STDIN_FILENO);
+		dup2(this->mCGIfd[1], STDIN_FILENO);
+		dup2(this->mCGIfd[0], STDOUT_FILENO);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
@@ -166,8 +171,8 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		std::exit(ret);
 	}
 	this->mStatus = PROC_CGI;
-	close(this->mCGIfd[1]);
-	kque.addEvent(this->mCGIfd[0], this);
+	close(this->mCGIfd[0]);
+	kque.addEvent(this->mCGIfd[1], this);
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
@@ -650,32 +655,28 @@ void Connection::printAll(void)
 void Connection::addEnv(std::map<std::string, std::string> & envp)
 {
 	envp["AUTH_TYPE"] = "";
-	envp["QUERY_STRING"] = "";
+	envp["QUERY_STRING"] = this->mRequest.getQuery();
 	envp["REMOTE_ADDR"] = "";
 	envp["REMOTE_HOST"] = "";
 	envp["REMOTE_IDENT"] = "";
 	envp["REMOTE_USER"] = "";
-	envp["SCRIPT_NAME"] = "";
-	envp["SERVER_NAME"] = ""; // PATH_TRANSLATED랑 동일
+	envp["SCRIPT_NAME"] = this->mCGI;
+	envp["SCRIPT_FILENAME"] = this->mCGI;
+	envp["SERVER_NAME"] = this->mRequest.findHeader("Host"); // PATH_TRANSLATED랑 동일
 	envp["GATEWAY_INTERFACE"] = "CGI/1.1";
 	envp["SERVER_PROTOCOL"] = "HTTP/1.1";
 	envp["SERVER_SOFTWARE"] = "webserv/1.0";
 	envp["PATH_TRANSLATED"] = this->mAbsolutePath;
 
-	std::string length;
-	std::stringstream ss;
-	eMethod method = this->mRequest.getMethod();
-	switch(method)
+	switch(this->mRequest.getMethod())
 	{
 		case GET :
 			envp["REQUEST_METHOD"] = "GET";
 			break;
 		case POST :
-			ss << this->mRequest.getContentLength();
-			ss >> length;
-			envp["CONTENT_LENGTH"] = length;
+			envp["CONTENT_LENGTH"] = this->mRequest.findHeader("Content-Length");
 			envp["REQUEST_METHOD"] = "POST";
-			envp["CONTENT_TYPE"] = this->mRequest.getContentType();
+			envp["CONTENT_TYPE"] = this->mRequest.findHeader("Content-Type");
 			break;
 		case DELETE :
 			envp["REQUEST_METHOD"] = "DELETE";
@@ -685,10 +686,8 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 			break;
 	}
 
-	std::string url = this->mRequest.getUrl();
-	std::size_t pos = url.find("//");
-	url = url.substr(pos + 2, url.size() - pos);
-	pos = url.find("/");
-	url = url.substr(pos + 1, url.size() - pos);
-	envp["PATH_INFO"] = url;
+	// envp["PATH_INFO"] = this->mRequest.getUrl();
+	
+	envp["PATH_INFO"] = this->mAbsolutePath;
+	envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
 }

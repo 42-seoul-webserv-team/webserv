@@ -481,6 +481,7 @@ void WebServ::activate()
 					this->run(clt);
 				if (clt->checkComplete())
 				{
+					clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();

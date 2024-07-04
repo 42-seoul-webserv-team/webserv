@@ -42,12 +42,13 @@ class Request
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
 		bool checkBodyComplete(void);
+		std::string getQuery(void);
 
 		void printAll(void);
 
-		// juhyelee - add cgi env
 		int getContentLength(void) const;
 		std::string getContentType(void) const;
+
 };
 
 #endif

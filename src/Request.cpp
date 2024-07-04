@@ -42,6 +42,11 @@ std::string Request::getUrl(void) const
 	return this->mUrl;
 }
 
+std::string Request::getQuery(void)
+{
+	return this->mQuery;
+}
+
 eStatus Request::getStatus(void) const
 {
 	return this->mReadStatus;
@@ -276,6 +281,7 @@ void Request::printAll(void)
 	for (std::map<std::string, std::string>::iterator it = this->mHeader.begin(); it != this->mHeader.end(); it++)
 		std::cout << "\t\t\t" << it->first << ": " << it->second << std::endl;
 	std::cout << "\t\t}" << std::endl;
+	std::cout << "\t\tBody Size: " << this->mBody.size() << std::endl;
 	std::cout << "\t\tBody: " << this->mBody << std::endl;
 }
 
