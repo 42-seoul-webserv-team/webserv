@@ -62,6 +62,7 @@ class Connection
 		char * getAbsolutePath(void) const;
 		int getBodySize(void);
 		std::string getQuery(void);
+		int getCGISocket(void);
 
 		void setAccept(int socket, int port);
 		void setServer(int svr);

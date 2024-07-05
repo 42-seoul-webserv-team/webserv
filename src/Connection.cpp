@@ -53,6 +53,11 @@ int Connection::getCGIproc(void) const
 	return this->mCGIproc;
 }
 
+int Connection::getCGISocket(void)
+{
+	return this->mCGIfd[1];
+}
+
 void Connection::fillRequest(void)
 {
 	std::ifstream file;
@@ -148,8 +153,11 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	{
 		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
+
 	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
 	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
+	
+	kque.addCGI(this->mCGIfd[1], this);
 
 	write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
 
@@ -160,12 +168,13 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
-		dup2(this->mCGIfd[1], STDIN_FILENO);
-		dup2(this->mCGIfd[0], STDOUT_FILENO);
+		dup2(this->mCGIfd[0], STDIN_FILENO);
+		dup2(this->mCGIfd[1], STDOUT_FILENO);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
-			const_cast<char *>(this->mCGI.c_str()),
+			//const_cast<char *>(this->mCGI.c_str()),
+			const_cast<char *>("/bin/ls"),
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
@@ -177,7 +186,6 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	this->mStatus = PROC_CGI;
 	close(this->mCGIfd[0]);
 	this->mCGIfd[0] = -1;
-	kque.addCGI(this->mCGIfd[1], this);
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
