@@ -114,15 +114,16 @@ void Connection::fillRequestCGI(void)
 	
 	while (true)
 	{
-		int length = read(this->mCGIfd[1], buffer, BUFFER_SIZE - 1);
+		int length = read(this->mCGIfd[0], buffer, BUFFER_SIZE - 1);
 		if (length <= 0)
 			break ;
 		buffer[length] = '\0';
 		ret += buffer;
 	}
+	std::cout << "body : " << ret << std::endl;
 	this->mResponse.setBody(ret);
-	close(this->mCGIfd[1]);
-	this->mCGIfd[1] = -1;
+	close(this->mCGIfd[0]);
+	this->mCGIfd[0] = -1;
 	this->mCGIproc = -1;
 	this->mStatus = COMPLETE;
 }
@@ -144,14 +145,20 @@ void Connection::removeFile(void) const
 
 void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp)
 {
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
+	//if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
+	if (pipe(this->mCGIfd))
 	{
 		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
 	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
 	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
 
-	write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
+	// write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
+	int inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
+	if (inputFile < 0)
+	{
+		throw ConnectionException("File not found", NOT_FOUND);
+	}
 
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
@@ -160,8 +167,11 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
-		dup2(this->mCGIfd[1], STDIN_FILENO);
-		dup2(this->mCGIfd[0], STDOUT_FILENO);
+		dup2(inputFile, STDIN_FILENO);
+		close(inputFile);
+		dup2(this->mCGIfd[1], STDOUT_FILENO);
+		close(this->mCGIfd[0]);
+		close(this->mCGIfd[1]);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
@@ -169,15 +179,14 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
-		close(this->mCGIfd[0]);
-		close(this->mCGIfd[1]);
-		// CGIenvp 메모리 누수를?
+		std::cout << "fail" << std::endl;
 		std::exit(ret);
 	}
+	kque.addCGI(this->mCGIfd[0], this);
+	close(inputFile);
+	close(this->mCGIfd[1]);
+	this->mCGIfd[1] = -1;
 	this->mStatus = PROC_CGI;
-	close(this->mCGIfd[0]);
-	this->mCGIfd[0] = -1;
-	kque.addCGI(this->mCGIfd[1], this);
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
@@ -685,6 +694,7 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 	envp["REMOTE_HOST"] = "";
 	envp["REMOTE_IDENT"] = "";
 	envp["REMOTE_USER"] = "";
+	envp["REDIRECT_STATUS"] = "200";
 	envp["SCRIPT_NAME"] = this->mCGI;
 	envp["SCRIPT_FILENAME"] = this->mCGI;
 	envp["SERVER_NAME"] = this->mRequest.findHeader("Host"); // PATH_TRANSLATED랑 동일
@@ -716,4 +726,8 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 	// envp["PATH_INFO"] = this->mAbsolutePath;
 	 envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
 	// envp["REQUEST_URI"] = this->mAbsolutePath;
+	//for (std::map<std::string, std::string>::iterator it = envp.begin(); it != envp.end(); it++)
+	//{
+	//	std::cout << it->first << " = " << it->second << std::endl;
+	//}
 }

@@ -458,19 +458,19 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				clt->readRequest();
-				clt->printAll();
+				// clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
 				if (clt->checkReadDone())
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
-				clt->printAll();
+				// clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				clt->printAll();
+				// clt->printAll();
 				if (clt->getStatus() == PROC_CGI)
 				{
 					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
@@ -480,9 +480,9 @@ void WebServ::activate()
 				}
 				else
 					this->run(clt);
-				clt->printAll();
 				if (clt->checkComplete())
 				{
+					//clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
