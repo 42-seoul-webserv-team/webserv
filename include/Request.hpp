@@ -43,6 +43,7 @@ class Request
 		void set(std::string const & line);
 		bool checkBodyComplete(void);
 		std::string getQuery(void);
+		bool isChunk(void);
 
 		void printAll(void);
 

@@ -2,6 +2,11 @@
 
 void WebServ::run(Connection * clt)
 {
+	if (clt->getStatus() == CGI_COMPLETE)
+	{
+		clt->setStatus(COMPLETE);
+		return ;
+	}
 	if (clt->getStatus() < COMPLETE)
 	{
 		return ;
@@ -483,7 +488,7 @@ void WebServ::activate()
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				clt->printAll();
+				// clt->printAll();
 				if (clt->getStatus() == PROC_CGI
 						&& curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
@@ -491,7 +496,7 @@ void WebServ::activate()
 					this->run(clt);
 				if (clt->checkComplete())
 				{
-					//clt->printAll();
+					clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();

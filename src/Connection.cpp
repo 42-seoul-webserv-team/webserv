@@ -55,7 +55,7 @@ int Connection::getCGIproc(void) const
 
 int Connection::getCGISocket(void)
 {
-	return this->mCGIfd[1];
+	return this->mCGIfd[0];
 }
 
 void Connection::fillRequest(void)
@@ -130,7 +130,7 @@ void Connection::fillRequestCGI(void)
 	close(this->mCGIfd[0]);
 	this->mCGIfd[0] = -1;
 	this->mCGIproc = -1;
-	this->mStatus = COMPLETE;
+	this->mStatus = CGI_COMPLETE;
 }
 
 void Connection::removeFile(void) const
@@ -158,8 +158,6 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 
 	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
 	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
-	
-	kque.addCGI(this->mCGIfd[1], this);
 
 	// write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
 	int inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
@@ -177,15 +175,14 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	{
 
 		dup2(inputFile, STDIN_FILENO);
-		close(inputFile);
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
+		close(inputFile);
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
-			//const_cast<char *>(this->mCGI.c_str()),
-			const_cast<char *>("/bin/ls"),
+			const_cast<char *>(this->mCGI.c_str()),
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
@@ -399,6 +396,7 @@ void Connection::readRequest(void)
 		throw ManagerException("Connection closed, Cannot read");
 
 	buffer[length] = '\0';
+	
 	this->renewTime();
 	std::string read_str = this->mRemainStr + buffer;
 
@@ -420,7 +418,7 @@ void Connection::readRequest(void)
 	}
 
 	this->mRemainStr = read_str;
-	if (!this->mRemainStr.empty() && this->mRequest.getStatus() == BODY)
+	if (!this->mRemainStr.empty() && this->mRequest.getStatus() == BODY && !this->mRequest.isChunk())
 	{
 		this->mRequest.set(this->mRemainStr);
 		this->mRemainStr.clear();
@@ -649,6 +647,9 @@ void Connection::printAll(void)
 			break ;
 		case PROC_CGI:
 			std::cout << "PROC_CGI";
+			break ;
+		case CGI_COMPLETE:
+			std::cout << "CGI_COMPLETE";
 			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";

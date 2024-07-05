@@ -174,16 +174,19 @@ void Request::setHeader(std::string const & line)
 
 void Request::setBody(std::string const & line)
 {
-	if (line.empty())
-		return ;
-
+	std::string trim_line = line;
+	ft::trim(trim_line);
 	if (this->mContentChunk)
 	{
+		if (trim_line.empty())
+		return ;
+
 		if (this->mContentLength <= 0)
 		{
 			try
 			{
 				this->mContentLength = ft::toInt(line, 16);
+				std::cout << "line: " << line << "trim_line: " << trim_line << "=>" << this->mContentLength << std::endl;
 			}
 			catch (int e)
 			{
@@ -193,10 +196,8 @@ void Request::setBody(std::string const & line)
 				this->mReadStatus = COMPLETE;
 		}
 		else
-		{
-			std::string trim_line = line;
-			ft::trim(trim_line);
-			this->mBody += line;
+		{	std::cout << this->mContentLength << "-=" << trim_line.size() << std::endl;
+			this->mBody += trim_line;
 			this->mContentLength -= static_cast<int>(trim_line.size());
 		}
 	}
@@ -220,6 +221,11 @@ void Request::setBody(std::string const & line)
 std::string Request::getBody(void) const
 {
 	return this->mBody;
+}
+
+bool Request::isChunk(void)
+{
+	return this->mContentChunk;
 }
 
 bool Request::checkBodyComplete(void)
