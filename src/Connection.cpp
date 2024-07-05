@@ -150,16 +150,13 @@ void Connection::removeFile(void) const
 
 void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp)
 {
-	//if (pipe(this->mCGIfd))
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
 	{
 		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
 	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
 	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
-	kque.addCGI(this->mCGIfd[0], this);
 
-	// write(this->mCGIfd[0], this->mRequest.getBody().c_str(), this->mRequest.getBodySize());
 	int inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
 	if (inputFile < 0)
 	{
@@ -173,10 +170,9 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
-		std::cout << this->mRequest.getBody() << std::endl;;
 		if (this->mRequest.getMethod() == POST)
 		{
-			dup2(this->mCGIfd[0], STDIN_FILENO);
+			dup2(this->mCGIfd[1], STDIN_FILENO);
 		}
 		else
 		{
@@ -193,16 +189,17 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
+		std::cout << "fail" << std::endl;
 		std::exit(ret);
 	}
+	close(inputFile);
 	if (this->mRequest.getMethod() == POST)
 	{
 		std::string body = this->mRequest.getBody();
-		write(this->mCGI[1], body.c_str(), body.size());
-		std::cout << body << std::endl;
+		send(this->mCGIfd[0], body.c_str(), body.size(), 0);
 	}
-	close(inputFile);
 	close(this->mCGIfd[1]);
+	kque.addCGI(this->mCGIfd[0], this);
 	this->mCGIfd[1] = -1;
 	this->mStatus = PROC_CGI;
 	gettimeofday(&this->mCGIstart, NULL);
