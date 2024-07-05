@@ -194,8 +194,10 @@ void Request::setBody(std::string const & line)
 		}
 		else
 		{
-			this->mBody += line + "\r\n";
-			this->mContentLength -= static_cast<int>(line.size());
+			std::string trim_line = line;
+			ft::trim(trim_line);
+			this->mBody += line;
+			this->mContentLength -= static_cast<int>(trim_line.size());
 		}
 	}
 	else

@@ -447,16 +447,29 @@ void WebServ::activate()
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+				{
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
-				else if (clt->getSocket() != -1)
-					throw ManagerException("Connection socket error");
-				continue ;
+					continue ;
+				}
+				else if (curEvent->ident == static_cast<uintptr_t>(clt->getCGISocket()))
+				{
+					std::cout << "CGI ERROR!" << std::endl;
+				}
+				//else
+				//	throw ManagerException("Connection socket error");
 			}
 
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				if (clt->getStatus() == PROC_CGI
+						&& curEvent->ident == static_cast<uintptr_t>(clt->getCGISocket()))
+				{
+					std::cout << "CGI READ!" << std::endl;
+					clt->fillRequestCGI();
+					continue ;
+				}
 				clt->readRequest();
 				// clt->printAll();
 				int svr = this->findServer(*clt);
@@ -470,14 +483,10 @@ void WebServ::activate()
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				// clt->printAll();
-				if (clt->getStatus() == PROC_CGI)
-				{
-					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+				clt->printAll();
+				if (clt->getStatus() == PROC_CGI
+						&& curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
-					else
-						clt->fillRequestCGI();
-				}
 				else
 					this->run(clt);
 				if (clt->checkComplete())

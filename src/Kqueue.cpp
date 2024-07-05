@@ -67,7 +67,7 @@ void Kqueue::addCGI(int fd, void *udata)
 
 	struct kevent tmp;
 
-	EV_SET(&tmp, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_EOF, 0, 0, udata);
+	EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_EOF, 0, 0, udata);
 	this->mChangeList.push_back(tmp);
 }
 
