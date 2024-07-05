@@ -33,21 +33,6 @@ struct kevent *Kqueue::getEvent(void)
 {
 	if (this->mKqIdx >= this->mEventSize)
 		return NULL;
-
-	std::cout << "Socket: " << this->mEventList[this->mKqIdx].ident << std::endl;
-	std::cout << "Flag: ";
-	switch (this->mEventList[this->mKqIdx].filter)
-	{
-		case EVFILT_READ:
-			std::cout << "READ" << std::endl;
-			break ;
-		case EVFILT_WRITE:
-			std::cout << "WRITE" << std::endl;
-			break ;
-		default:
-			std::cout << "??" << std::endl;
-			break;
-	}
 	return &(this->mEventList[this->mKqIdx++]);
 }
 
