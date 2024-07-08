@@ -152,7 +152,7 @@ void Request::setHeader(std::string const & line)
 			{
 				throw ConnectionException("POST required entity header", MATHOD_NOT_ALLOWED);
 			}
-			this->mReadStatus = BODY;
+			this->mReadStatus = CHECK_TYPE;
 		}
 		else
 			this->mReadStatus = COMPLETE;
@@ -172,6 +172,11 @@ void Request::setHeader(std::string const & line)
 	this->mHeaderLength += line.size();
 }
 
+void Request::setStatus(eStatus status)
+{
+	this->mReadStatus = status;
+}
+
 void Request::setBody(std::string const & line)
 {
 	std::string trim_line = line;
@@ -179,14 +184,13 @@ void Request::setBody(std::string const & line)
 	if (this->mContentChunk)
 	{
 		if (trim_line.empty())
-		return ;
+			return ;
 
 		if (this->mContentLength <= 0)
 		{
 			try
 			{
 				this->mContentLength = ft::toInt(line, 16);
-				std::cout << "line: " << line << "trim_line: " << trim_line << "=>" << this->mContentLength << std::endl;
 			}
 			catch (int e)
 			{
@@ -196,7 +200,7 @@ void Request::setBody(std::string const & line)
 				this->mReadStatus = COMPLETE;
 		}
 		else
-		{	std::cout << this->mContentLength << "-=" << trim_line.size() << std::endl;
+		{
 			this->mBody += trim_line;
 			this->mContentLength -= static_cast<int>(trim_line.size());
 		}
@@ -221,6 +225,11 @@ void Request::setBody(std::string const & line)
 std::string Request::getBody(void) const
 {
 	return this->mBody;
+}
+
+void Request::setContentLength(int length)
+{
+	this->mContentLength = length;
 }
 
 bool Request::isChunk(void)
@@ -258,6 +267,9 @@ void Request::printAll(void)
 		case BODY:
 			std::cout << "BODY";
 			break ;
+		case CHECK_TYPE:
+			std::cout << "CHECK TYPE";
+			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";
 			break ;
@@ -290,7 +302,7 @@ void Request::printAll(void)
 		std::cout << "\t\t\t" << it->first << ": " << it->second << std::endl;
 	std::cout << "\t\t}" << std::endl;
 	std::cout << "\t\tBody Size: " << this->mBody.size() << std::endl;
-	std::cout << "\t\tBody: " << this->mBody << std::endl;
+//	std::cout << "\t\tBody: " << this->mBody << std::endl;
 }
 
 int Request::getContentLength(void) const

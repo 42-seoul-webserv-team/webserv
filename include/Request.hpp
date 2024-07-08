@@ -38,6 +38,7 @@ class Request
 		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;
+		void setStatus(eStatus status);
 		std::string getBody(void) const;
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
@@ -48,6 +49,7 @@ class Request
 		void printAll(void);
 
 		int getContentLength(void) const;
+		void setContentLength(int length);
 		std::string getContentType(void) const;
 
 };

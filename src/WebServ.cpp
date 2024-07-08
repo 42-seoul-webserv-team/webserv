@@ -454,14 +454,8 @@ void WebServ::activate()
 				if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 				{
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
-					continue ;
 				}
-				else if (curEvent->ident == static_cast<uintptr_t>(clt->getCGISocket()))
-				{
-					std::cout << "CGI ERROR!" << std::endl;
-				}
-				//else
-				//	throw ManagerException("Connection socket error");
+				continue ;
 			}
 
 			if (curEvent->udata != NULL
@@ -471,24 +465,20 @@ void WebServ::activate()
 				if (clt->getStatus() == PROC_CGI
 						&& curEvent->ident == static_cast<uintptr_t>(clt->getCGISocket()))
 				{
-					std::cout << "CGI READ!" << std::endl;
 					clt->fillRequestCGI();
 					continue ;
 				}
 				clt->readRequest();
-				// clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
 				if (clt->checkReadDone())
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
-				// clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				// clt->printAll();
 				if (clt->getStatus() == PROC_CGI
 						&& curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
@@ -642,7 +632,6 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
 				clt->setAbsolutePath(clt->getAbsolutePath(), str_url, "text/html");
-
 				clt->setType(UPLOAD);
 			}
 			clt->setStatus(BODY);
@@ -655,8 +644,6 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			throw ConnectionException("Request Body Too Long" ,REQUEST_ENTITY_TOO_LONG);
 		if (clt->checkStatus())
 		{
-			if (clt->getType() == UPLOAD)
-				clt->setUpload();
 			clt->setStatus(COMPLETE);
 		}
 	}
