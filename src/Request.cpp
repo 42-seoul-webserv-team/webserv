@@ -166,6 +166,8 @@ void Request::setHeader(std::string const & line)
 		std::string value = line.substr(pos + 1);
 		ft::trim(key);
 		ft::trim(value);
+		if (key == "Host" && !this->mHeader[key].empty())
+			throw ConnectionException("Bad Request", BAD_REQUEST);
 		this->mHeader[key] = value;
 	}
 

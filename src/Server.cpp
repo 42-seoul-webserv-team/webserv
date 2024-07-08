@@ -104,14 +104,20 @@ void Server::setBodySize(std::string const & dataSize)
 {
 	std::string tmp = dataSize;
 	char sizeForm = tmp.back();
-	tmp.pop_back();
-	size_t bodysize = ft::toInt(tmp, 10);
-	switch (sizeForm) {
-		case 'M':
-			bodysize *= 1000000;
-			break;
-		case 'K':
-			bodysize *= 1000;
+	size_t bodysize = 0;
+	if ('0' <= sizeForm && sizeForm <= '9')
+		bodysize = ft::toInt(tmp, 10);
+	else
+	{
+		tmp.pop_back();
+		bodysize = ft::toInt(tmp, 10);
+		switch (sizeForm) {
+			case 'M':
+				bodysize *= 1000000;
+				break;
+			case 'K':
+				bodysize *= 1000;
+		}
 	}
 	this->mBodySize = bodysize;
 }
