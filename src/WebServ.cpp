@@ -566,6 +566,11 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 		if (!lct->getRedirect().empty())
 			throw RedirectionException(lct->getRedirect(), svr->getServerName());
+		else if (clt->getType() == UPLOAD)
+		{
+				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
+				clt->setAbsolutePath(clt->getAbsolutePath(), str_url, "text/html");
+		}
 		else if (lct->checkIndexFile(url))
 		{
 			clt->setAbsolutePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
@@ -620,22 +625,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 	{
 		clt->setStatus(COMPLETE);
 		if (clt->getMethod() == POST)
-		{
-			if (clt->checkUpload())
-			{
-				std::vector<std::string> url = this->parseUrl(clt->getUrl());
-				Location *lct = svr->findLocation(url);
-				if (lct == NULL)
-					throw ConnectionException("Can't find Location", NOT_FOUND);
-		
-				std::string str_url = lct->parseUrl(url);
-
-				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
-				clt->setAbsolutePath(clt->getAbsolutePath(), str_url, "text/html");
-				clt->setType(UPLOAD);
-			}
 			clt->setStatus(BODY);
-		}
 	}
 
 	if (clt->getStatus() == BODY)
@@ -643,9 +633,7 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		if (clt->getBodySize() > svr->getBodySize())
 			throw ConnectionException("Request Body Too Long" ,REQUEST_ENTITY_TOO_LONG);
 		if (clt->checkStatus())
-		{
 			clt->setStatus(COMPLETE);
-		}
 	}
 }
 

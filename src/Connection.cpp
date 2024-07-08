@@ -432,6 +432,9 @@ void Connection::readRequest(void)
 	}
 	if (this->mProcType == UPLOAD)
 		this->setUpload();
+	else
+		this->setBody();
+
 }
 
 void Connection::setBody(void)
