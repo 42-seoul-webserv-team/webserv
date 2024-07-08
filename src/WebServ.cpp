@@ -474,6 +474,7 @@ void WebServ::activate()
 					this->parseRequest(clt, &this->mServers[svr]);
 				if (clt->checkReadDone())
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
+				clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))

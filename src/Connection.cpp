@@ -1,6 +1,7 @@
 #include "Connection.hpp"
 
 #include <iostream>
+#include <sys/socket.h>
 
 eStatus Connection::getReadStatus(void) const
 {
