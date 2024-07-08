@@ -230,7 +230,21 @@ void Connection::uploadFiles(void)
 		int size = this->mUploadInfo[j].size();
 		std::string file_name = "Untitle";
 		
-		try {
+		try
+		{
+			std::string path = this->getAbsolutePath();
+			if (path.back() == '/')
+				path.pop_back();
+
+			if (access(path.c_str(), F_OK) != 0)
+				throw "fail";
+			DIR *dir = opendir(path.c_str());
+			if (dir == NULL)
+				throw "fail";
+			closedir(dir);
+			if (access(path.c_str(), W_OK) != 0)
+				throw "fail";
+
 			for (int i = 0; i < size; i++)
 			{
 				size_t pos = this->mUploadInfo[j][i].find(':');
@@ -248,16 +262,13 @@ void Connection::uploadFiles(void)
 						file_name.erase(0, 1);
 						pos = file_name.find('\"');
 						if (pos == std::string::npos)
-							throw ;
+							throw "fail";
 						file_name = file_name.substr(0, pos);
 						if (file_name.empty())
 							file_name = "Untitle" ;
 					}
 				}
 			}
-			std::string path = this->getAbsolutePath();
-			if (path.back() == '/')
-				path.pop_back();
 			
 			std::string subject;
 			std::string extension = "";
@@ -283,14 +294,14 @@ void Connection::uploadFiles(void)
 			std::ofstream output;
 			output.open(file, std::fstream::out);
 			if (!output.is_open())
-				throw ;
+				throw "fail";
 			for (size_t i = 0; i < this->mUpload[j].size(); i++)
 			{
 				output << this->mUpload[j][i];
 			}
 			output.close();
 			success++;
-		} catch (...) {
+		} catch (char const* str) {
 			fail++;
 		}
 	}
