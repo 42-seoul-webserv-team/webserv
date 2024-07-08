@@ -5,3 +5,5 @@ cgi_tester
 *.log
 dir
 conf/default.conf
+*.o
+*.d
