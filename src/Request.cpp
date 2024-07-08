@@ -1,5 +1,5 @@
 #include "Request.hpp"
-
+#include <iostream>
 Request::Request(void)
 {
 	this->mReadStatus = STARTLINE;
@@ -42,6 +42,11 @@ std::string Request::getUrl(void) const
 	return this->mUrl;
 }
 
+std::string Request::getQuery(void)
+{
+	return this->mQuery;
+}
+
 eStatus Request::getStatus(void) const
 {
 	return this->mReadStatus;
@@ -53,6 +58,9 @@ std::string Request::findHeader(std::string const & key)
 }
 void Request::set(std::string const & line)
 {
+	if (this->mReadStatus == COMPLETE)
+		return ;
+
 	if (this->mReadStatus == STARTLINE)
 	{
 		this->setStartLine(line);
@@ -65,6 +73,11 @@ void Request::set(std::string const & line)
 	{
 		this->setBody(line);
 	}
+}
+
+int Request::getBodySize(void)
+{
+	return this->mBody.size();
 }
 
 void Request::setStartLine(std::string const & line)
@@ -80,6 +93,8 @@ void Request::setStartLine(std::string const & line)
 		this->mMethod = POST;
 	else if (words[0] == "DELETE")
 		this->mMethod = DELETE;
+	else if (words[0] == "HEAD")
+		this->mMethod = HEAD;
 	else
 		throw ConnectionException("Unkwon Method", BAD_REQUEST);
 
@@ -114,7 +129,7 @@ void Request::setHeader(std::string const & line)
 	if (this->mHeaderLength > HEADER_LENGTH_MAX)
 		throw ConnectionException("Header Lenghth too long", BAD_REQUEST);
 
-	if (line.empty())
+	if (line == "\r\n")
 	{
 		if (this->findHeader("Host").empty())
 			throw ConnectionException("Need Host Header", BAD_REQUEST);
@@ -134,8 +149,10 @@ void Request::setHeader(std::string const & line)
 			else if (this->findHeader("Transfer-Encoding") == "chunked")
 				this->mContentChunk = true;
 			else
-				throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
-			this->mReadStatus = BODY;
+			{
+				throw ConnectionException("POST required entity header", MATHOD_NOT_ALLOWED);
+			}
+			this->mReadStatus = CHECK_TYPE;
 		}
 		else
 			this->mReadStatus = COMPLETE;
@@ -149,17 +166,29 @@ void Request::setHeader(std::string const & line)
 		std::string value = line.substr(pos + 1);
 		ft::trim(key);
 		ft::trim(value);
+		if (key == "Host" && !this->mHeader[key].empty())
+			throw ConnectionException("Bad Request", BAD_REQUEST);
 		this->mHeader[key] = value;
 	}
 
 	this->mHeaderLength += line.size();
 }
 
+void Request::setStatus(eStatus status)
+{
+	this->mReadStatus = status;
+}
+
 void Request::setBody(std::string const & line)
 {
+	std::string trim_line = line;
+	ft::trim(trim_line);
 	if (this->mContentChunk)
 	{
-		if (this->mContentLength == -1)
+		if (trim_line.empty())
+			return ;
+
+		if (this->mContentLength <= 0)
 		{
 			try
 			{
@@ -169,16 +198,13 @@ void Request::setBody(std::string const & line)
 			{
 				throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST);
 			}
-			if (this->mContentLength == 0
-					&& this->findHeader("Trailer").empty())
+			if (this->mContentLength == 0)
 				this->mReadStatus = COMPLETE;
 		}
 		else
 		{
-			if (this->mContentLength > 0)
-				this->mBody += line + "\r\n";
-			else
-				this->mReadStatus = COMPLETE;
+			this->mBody += trim_line;
+			this->mContentLength -= static_cast<int>(trim_line.size());
 		}
 	}
 	else
@@ -186,7 +212,7 @@ void Request::setBody(std::string const & line)
 		int length = line.size();
 		if (length < this->mContentLength)
 		{
-			this->mBody += line + "\r\n";
+			this->mBody += line;
 			this->mContentLength -= length;
 		}
 		else
@@ -201,6 +227,16 @@ void Request::setBody(std::string const & line)
 std::string Request::getBody(void) const
 {
 	return this->mBody;
+}
+
+void Request::setContentLength(int length)
+{
+	this->mContentLength = length;
+}
+
+bool Request::isChunk(void)
+{
+	return this->mContentChunk;
 }
 
 bool Request::checkBodyComplete(void)
@@ -233,6 +269,9 @@ void Request::printAll(void)
 		case BODY:
 			std::cout << "BODY";
 			break ;
+		case CHECK_TYPE:
+			std::cout << "CHECK TYPE";
+			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";
 			break ;
@@ -251,6 +290,9 @@ void Request::printAll(void)
 		case DELETE:
 			std::cout << "DELETE";
 			break ;
+		case HEAD:
+			std::cout << "HEAD";
+			break ;
 		default:
 			break ;
 	}
@@ -261,7 +303,8 @@ void Request::printAll(void)
 	for (std::map<std::string, std::string>::iterator it = this->mHeader.begin(); it != this->mHeader.end(); it++)
 		std::cout << "\t\t\t" << it->first << ": " << it->second << std::endl;
 	std::cout << "\t\t}" << std::endl;
-	std::cout << "\t\tBody: " << this->mBody << std::endl;
+	std::cout << "\t\tBody Size: " << this->mBody.size() << std::endl;
+//	std::cout << "\t\tBody: " << this->mBody << std::endl;
 }
 
 int Request::getContentLength(void) const

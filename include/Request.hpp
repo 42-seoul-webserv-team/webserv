@@ -34,19 +34,24 @@ class Request
 
 		void clear(void);
 
+		int getBodySize(void);
 		eMethod getMethod(void) const;
 		std::string getUrl(void) const;
 		eStatus getStatus(void) const;
+		void setStatus(eStatus status);
 		std::string getBody(void) const;
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
 		bool checkBodyComplete(void);
+		std::string getQuery(void);
+		bool isChunk(void);
 
 		void printAll(void);
 
-		// juhyelee - add cgi env
 		int getContentLength(void) const;
+		void setContentLength(int length);
 		std::string getContentType(void) const;
+
 };
 
 #endif

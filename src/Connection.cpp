@@ -1,15 +1,16 @@
 #include "Connection.hpp"
-#include <fcntl.h>
-#include <unistd.h>
-#include <string>
-#include <sstream>
+
 #include <iostream>
-#include <exception>
 #include <sys/socket.h>
 
 eStatus Connection::getReadStatus(void) const
 {
 	return this->mRequest.getStatus();
+}
+
+int	Connection::getBodySize(void)
+{
+	return this->mRequest.getBodySize();
 }
 
 eMethod Connection::getMethod(void) const
@@ -47,6 +48,11 @@ int Connection::getCGIproc(void) const
 	return this->mCGIproc;
 }
 
+int Connection::getCGISocket(void)
+{
+	return this->mCGIfd[0];
+}
+
 void Connection::fillRequest(void)
 {
 	std::ifstream file;
@@ -65,10 +71,7 @@ void Connection::fillRequest(void)
 	if (!body.empty())
 		body.pop_back();
 
-	if (this->getMethod() != HEAD)
-	{
-		this->mResponse.setBody(body);
-	}
+	this->mResponse.setBody(body);
 	file.close();
 }
 
@@ -79,29 +82,49 @@ void Connection::fillRequest(std::vector<std::string> & list)
 	body += "<body><h1>" + title + "<h1><ul>";
 	for (std::vector<std::string>::iterator it = list.begin(); it != list.end(); it++)
 	{
-		body += "<li><a href=\"" + *it + "\">" + *it + "</a></li>";
+		std::string el = this->mAbsolutePath + "/" + *it;
+		std::string uri = this->mRequest.getUrl();
+		if (uri[uri.size() - 1] == '/')
+		{
+			uri += *it;
+		}
+		else
+		{
+			uri = uri + "/" + *it;
+		}
+		DIR * dir = opendir(el.c_str());
+		if (dir == NULL)
+		{
+			body += "<li><a href=\"" + uri + "\">" + *it + "</a></li>";
+		}
+		else
+		{
+			closedir(dir);
+			body += "<li><a href=\"" + uri + "/\">" + *it + "/</a><l/li>";
+		}
 	}
 	body += "</ul></body></html>";
-	if (this->getMethod() != HEAD)
-	{
-		this->mResponse.setBody(body);
-	}
+	this->mResponse.setBody(body);
 }
 
 void Connection::fillRequestCGI(void)
 {
-	char buffer[1024];
-	std::string ret = "";
-	while (read(this->mCGIfd[0], buffer, 1023) > 0)
+	char buffer[BUFFER_SIZE];
+	std::string ret;
+	
+	while (true)
 	{
-		buffer[1023] = '\0';
-		std::string str = buffer;
-		ret += str;
+		int length = read(this->mCGIfd[0], buffer, BUFFER_SIZE - 1);
+		if (length <= 0)
+			break ;
+		buffer[length] = '\0';
+		ret += buffer;
 	}
-	if (this->getMethod() != HEAD)
-	{
-		this->mResponse.setBody(ret);
-	}
+	this->mResponse.setBody(ret);
+	close(this->mCGIfd[0]);
+	this->mCGIfd[0] = -1;
+	this->mCGIproc = -1;
+	this->mStatus = CGI_COMPLETE;
 }
 
 void Connection::removeFile(void) const
@@ -125,8 +148,14 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	{
 		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
 	}
-	fcntl(this->mCGIfd[0], O_NONBLOCK);
-	fcntl(this->mCGIfd[1], O_NONBLOCK);
+	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
+	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
+
+	int inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
+	if (inputFile < 0)
+	{
+		throw ConnectionException("File not found", NOT_FOUND);
+	}
 
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
@@ -135,7 +164,16 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
+		if (this->mRequest.getMethod() == POST)
+		{
+			dup2(this->mCGIfd[1], STDIN_FILENO);
+		}
+		else
+		{
+			dup2(inputFile, STDIN_FILENO);
+		}
 		dup2(this->mCGIfd[1], STDOUT_FILENO);
+		close(inputFile);
 		close(this->mCGIfd[0]);
 		close(this->mCGIfd[1]);
 		this->addEnv(envp);
@@ -145,12 +183,19 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
-		exit(ret);
+		std::cout << "fail" << std::endl;
+		std::exit(ret);
 	}
-
-	this->mStatus = PROC_CGI;
+	close(inputFile);
+	if (this->mRequest.getMethod() == POST)
+	{
+		std::string body = this->mRequest.getBody();
+		send(this->mCGIfd[0], body.c_str(), body.size(), 0);
+	}
 	close(this->mCGIfd[1]);
-	kque.addEvent(this->mCGIfd[0], this);
+	kque.addCGI(this->mCGIfd[0], this);
+	this->mCGIfd[1] = -1;
+	this->mStatus = PROC_CGI;
 	gettimeofday(&this->mCGIstart, NULL);
 }
 
@@ -183,35 +228,48 @@ void Connection::uploadFiles(void)
 
 	for (size_t j = 0; j < this->mUpload.size(); j++)
 	{
-		int size = this->mUpload[j].size();
+		int size = this->mUploadInfo[j].size();
 		std::string file_name = "Untitle";
 		
-		try {
-			for (int i = 0; i < size - 1; i++)
+		try
+		{
+			std::string path = this->getAbsolutePath();
+			if (path.back() == '/')
+				path.pop_back();
+
+			if (access(path.c_str(), F_OK) != 0)
+				throw "fail";
+			DIR *dir = opendir(path.c_str());
+			if (dir == NULL)
+				throw "fail";
+			closedir(dir);
+			if (access(path.c_str(), W_OK) != 0)
+				throw "fail";
+
+			for (int i = 0; i < size; i++)
 			{
-				size_t pos = this->mUpload[j][i].find(':');
+				size_t pos = this->mUploadInfo[j][i].find(':');
 				if (pos == std::string::npos)
 					continue ;
-				std::string header = this->mUpload[j][i].substr(0, pos);
-				if (header == "Content-Disposition" 
-						&& this->mUpload[j][i].find("filename=") != std::string::npos)
+				std::string header = this->mUploadInfo[j][i].substr(0, pos);
+				if (header == "Content-Disposition")
 				{
-					file_name = this->mUpload[j][i].substr(this->mUpload[j][i].find("filename=") + 9);
+					pos = this->mUploadInfo[j][i].find("filename=");
+					if (pos == std::string::npos)
+						continue ;
+					file_name = this->mUploadInfo[j][i].substr(pos + 9);
 					if (!file_name.empty() && file_name.front() == '\"')
 					{
 						file_name.erase(0, 1);
 						pos = file_name.find('\"');
 						if (pos == std::string::npos)
-							throw file_name;
+							throw "fail";
 						file_name = file_name.substr(0, pos);
 						if (file_name.empty())
-							throw file_name;
+							file_name = "Untitle" ;
 					}
 				}
 			}
-			std::string path = this->getAbsolutePath();
-			if (path.back() == '/')
-				path.pop_back();
 			
 			std::string subject;
 			std::string extension = "";
@@ -237,11 +295,14 @@ void Connection::uploadFiles(void)
 			std::ofstream output;
 			output.open(file, std::fstream::out);
 			if (!output.is_open())
-				throw file;
-			output << this->mUpload[j].back() << std::endl;
+				throw "fail";
+			for (size_t i = 0; i < this->mUpload[j].size(); i++)
+			{
+				output << this->mUpload[j][i];
+			}
 			output.close();
 			success++;
-		} catch (std::string & e) {
+		} catch (char const* str) {
 			fail++;
 		}
 	}
@@ -257,9 +318,8 @@ void Connection::isTimeOver(void) const
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
-	if (now.tv_sec - this->mCGIstart.tv_sec > CGI_OVERTIME)
+	if ((now.tv_sec - this->mCGIstart.tv_sec ) + (( now.tv_usec - this->mCGIstart.tv_usec ) / 1000000) > CGI_OVERTIME)
 	{
-		kill(this->getCGIproc(), SIGKILL);
 		throw ConnectionException("CGI Time out", GATEWAY_TIMEOUT);
 	}
 }
@@ -270,7 +330,11 @@ Connection::Connection(void)
 	this->mServerPort = -1;
 	this->mServer = -1;
 	this->mStatus = STARTLINE;
+	this->mUploadStatus = STARTLINE;
 	this->mProcType = NONE;
+	this->mCGIfd[0] = -1;
+	this->mCGIfd[1] = -1;
+	this->mCGIproc = -1;
 }
 
 Connection::Connection(int socket, int svr_port)
@@ -279,17 +343,25 @@ Connection::Connection(int socket, int svr_port)
 	this->mServerPort = svr_port;
 	this->mServer = -1;
 	this->mStatus = STARTLINE;
+	this->mUploadStatus = STARTLINE;
 	this->mProcType = NONE;
+	this->mCGIfd[0] = -1;
+	this->mCGIfd[1] = -1;
+	this->mCGIproc = -1;
 	this->renewTime();
 }
 
 Connection::~Connection(void)
 {
-	this->mServer = -1;
 	this->mAbsolutePath.clear();
 	this->mUpload.clear();
-	this->mRemainStr.clear();
+	this->mRemain.clear();
 	this->mCGI.clear();
+}
+
+void Connection::setServerName(std::string const & svr)
+{
+	this->mResponse.setServerName(svr);
 }
 
 void Connection::setAccept(int socket, int port)
@@ -338,40 +410,75 @@ void Connection::readRequest(void)
 		return ;
 
 	char buffer[BUFFER_SIZE];
-	int length = read(this->mSocket, buffer, BUFFER_SIZE);
+	int length = read(this->mSocket, buffer, BUFFER_SIZE - 1);
 
-  	if (length == 0)
-		return ;
-	else if (length == -1)
+	if (length == -1)
 		throw ManagerException("Connection closed, Cannot read");
-
-	this->renewTime();
-	std::string read_str = this->mRemainStr + buffer;
-
-	size_t pos = read_str.find('\n');
-	while (pos != std::string::npos)
+	else if (this->mRemain.empty() && length == 0)
+		return ;
+	else if (length != 0)
 	{
-		std::string line = read_str.substr(0, pos);
-		
-		line.pop_back();
-		read_str.erase(0, pos + 1);
-		
-		this->mRequest.set(line);
-
-		if (this->mRequest.getStatus() == COMPLETE)
-			return ;
-
-		pos = read_str.find('\n');
+		for (int i = 0; i < length; i++)
+			this->mRemain.push_back(buffer[i]);
+		this->renewTime();
 	}
 
-	
-	if (length < BUFFER_SIZE && !read_str.empty())
-			this->mRequest.set(read_str);
+	if (this->mProcType != UPLOAD)
+		this->setBody();
+	if (this->mRequest.getStatus() == CHECK_TYPE)
+	{
+		if (this->checkUpload())
+			this->mProcType = UPLOAD;
+		this->mRequest.setStatus(BODY);
+	}
+	if (this->mProcType == UPLOAD)
+		this->setUpload();
 	else
-		this->mRemainStr = read_str;
-	
+		this->setBody();
+
 }
 
+void Connection::setBody(void)
+{
+	while (!this->mRemain.empty()
+			&& this->mRemain.end() != find(this->mRemain.begin(), this->mRemain.end(), '\n'))
+	{
+		std::string line;
+		while (this->mRemain.front() != '\n')
+		{
+			line.push_back(this->mRemain.front());
+			this->mRemain.pop_front();
+		}
+		line.push_back(this->mRemain.front());
+		this->mRemain.pop_front();	
+
+		this->mRequest.set(line);
+
+		switch (this->mRequest.getStatus())
+		{
+			case CHECK_TYPE:
+				return ;
+			case COMPLETE:
+				this->mRemain.clear();
+				return ;
+			default:
+				break;
+		}
+	}
+
+	if (!this->mRemain.empty()
+			&& this->mRequest.getStatus() == BODY
+			&& !this->mRequest.isChunk())
+	{
+		std::string line;
+		while (!this->mRemain.empty())
+		{
+			line.push_back(this->mRemain.front());
+			this->mRemain.pop_front();
+		}
+		this->mRequest.set(line);
+	}
+}
 void Connection::closeSocket(void)
 {
 	if (this->mSocket != -1)
@@ -379,13 +486,32 @@ void Connection::closeSocket(void)
 		close(this->mSocket);
 		this->mSocket = -1;
 	}
+	if (this->mCGIproc != -1)
+	{
+		kill(this->mCGIproc, SIGKILL);
+		this->mCGIproc = -1;
+	}
+	if (this->mCGIfd[0] != -1)
+	{
+		close(this->mCGIfd[0]);
+		this->mCGIfd[0] = -1;
+	}
+	if (this->mCGIfd[1] != -1)
+	{
+		close(this->mCGIfd[1]);
+		this->mCGIfd[1] = -1;
+	}
 	this->mServerPort = -1;
 	this->mServer = -1;
 	this->mRequest.clear();
 	this->mResponse.clear();
 	this->mAbsolutePath.clear();
 	this->mUpload.clear();
-	this->mRemainStr.clear();
+	this->mUploadInfo.clear();
+	this->mRemain.clear();
+	this->mUploadStart.clear();
+	this->mUploadEnd.clear();
+	this->mUploadStatus = STARTLINE;
 	this->mStatus = STARTLINE;
 	this->mProcType = NONE;
 	this->mCGI.clear();
@@ -405,7 +531,7 @@ bool Connection::checkOvertime(void)
 {
 	struct timeval now;
 	gettimeofday(&now, NULL);
-	if (now.tv_sec - this->mTime.tv_sec > REQ_OVERTIME)
+	if ((now.tv_sec - this->mTime.tv_sec ) + (( now.tv_usec - this->mTime.tv_usec ) / 1000000) > REQ_OVERTIME)
 		return true;
 	return false;
 }
@@ -428,6 +554,19 @@ bool Connection::checkUpload(void)
 	std::string multipart = type.substr(0, pos);
 	if (ft::trim(multipart) != "multipart/form-data")
 		return false;
+	
+	std::string boundary = type.substr(pos + 1);
+	pos = boundary.find('=');
+	if (pos == std::string::npos)
+		throw ConnectionException("Boundary not matched format", BAD_REQUEST);
+	
+	this->mUploadStart = "--" + boundary.substr(pos + 1);
+	this->mUploadEnd = this->mUploadStart + "--";
+	
+	boundary.erase(pos);
+	if (ft::trim(boundary) != "boundary")
+		throw ConnectionException("Boundary not matched format", BAD_REQUEST);
+
 	return true;
 }
 
@@ -444,6 +583,9 @@ eMethod Connection::getMethod(void)
 void Connection::setStatus(eStatus status)
 {
 	this->mStatus = status;
+	if (this->mRequest.getStatus() == CHECK_TYPE
+			&& status == BODY)
+		this->mRequest.setStatus(status);
 }
 
 void Connection::setAbsolutePath(std::string const & root, std::string const & url, std::string const & type)
@@ -464,71 +606,109 @@ void Connection::setAbsolutePath(std::string const & root, std::string const & u
 
 void Connection::setUpload(void)
 {
-	std::string type = this->mRequest.findHeader("Content-Type");
-	size_t pos = type.find(';');
-	if (pos == std::string::npos)
-		throw ConnectionException("Cannot find multipart/form-data", BAD_REQUEST);
-
-	std::string boundary = type.substr(pos + 1);
-	pos = boundary.find('=');
-	if (pos == std::string::npos)
-		throw ConnectionException("Boundary not matched format", BAD_REQUEST);
-	
-	std::string start = "--" + boundary.substr(pos + 1);
-	std::string end = start + "--";
-
-	boundary.erase(pos);
-	if (ft::trim(boundary) != "boundary")
-		throw ConnectionException("Boundary not match format", BAD_REQUEST);
-
-	std::string body = this->mRequest.getBody();
-	if (body.empty())
-		throw ConnectionException("Upload Body empty", BAD_REQUEST);
-
-		
-	pos = body.find("\r\n");
-	if (pos == std::string::npos)
-		throw ConnectionException("Upload Body not match format", BAD_REQUEST);
-	std::string line = body.substr(0, pos);
-	if (line != start)
-		throw ConnectionException("Upload Body not match format", BAD_REQUEST);
-	
-	bool flag = true;	
-	while (!body.empty())
+	while (!this->mRemain.empty()
+			&& this->mRemain.end() != find(this->mRemain.begin(), this->mRemain.end(), '\n')
+			&& this->mRequest.getStatus() != COMPLETE)
 	{
-		pos = body.find("\r\n");
-		if (pos == std::string::npos)
+		std::vector<char> line;
+		while (this->mRemain.front() != '\n')
 		{
-			if (body == end && flag == true)
-				break ;
-			else
-				throw ConnectionException("Upload Body not match format", BAD_REQUEST);
+			line.push_back(this->mRemain.front());
+			this->mRemain.pop_front();
 		}
-		else
-		{
-			line = body.substr(0, pos);
-			body.erase(0, pos + 2);
-		}
+		line.push_back(this->mRemain.front());
+		this->mRemain.pop_front();
 
-		if (line == start && flag == true)
+		std::string str;
+		for (size_t i = 0; i < line.size(); i++)
+			str.push_back(line[i]);
+
+		int content_length = this->mRequest.getContentLength();
+		if (this->mRequest.isChunk())
 		{
-			flag = false;
-			this->mUpload.push_back(std::vector<std::string>());
+			if (line[0] == '\r' && line[1] == '\n')
+				continue ;
+
+			if (content_length <= 0)
+			{
+				try
+				{
+					content_length = ft::toInt(str, 16);
+				}
+				catch (int e)
+				{
+					throw ConnectionException("Transfer Chunk Content-length is not number", BAD_REQUEST);
+				}
+				if (content_length == 0)
+					this->mRequest.setStatus(COMPLETE);
+				this->mRequest.setContentLength(content_length);
+			}
+			else
+			{
+				this->setUploadData(str, line);
+				content_length -= line.size() - 2;
+				this->mRequest.setContentLength(content_length);
+			}
 		}
-		else if (line == end && flag == true)
-			break ;
-		else if (line.empty() && flag == false)
-		{
-			flag =  true;
-			this->mUpload.back().push_back("");
-		}
-		else if (flag == false)
-			this->mUpload.back().push_back(line);
-		else if (flag == true)
-			this->mUpload.back().back() += line + "\r\n";
 		else
-			throw ConnectionException("Upload Body not match format", BAD_REQUEST);
+		{
+			int length = line.size();
+			if (length < content_length)
+			{
+				content_length -= length;
+				this->mRequest.setContentLength(content_length);
+				this->setUploadData(str, line);
+			}
+			else
+			{
+				line.resize(content_length);
+				str.resize(content_length);
+				this->mRequest.setContentLength(0);
+				this->setUploadData(str, line);
+			}
+		}
 	}
+}
+
+void Connection::setUploadData(std::string & st, std::vector<char> & vt)
+{
+	ft::trim(st);
+	if (this->mUploadStatus == STARTLINE
+			&& !st.empty()
+			&& st == this->mUploadStart)
+	{
+		this->mUpload.push_back(std::vector<char>());
+		this->mUploadInfo.push_back(std::vector<std::string>());
+		this->mUploadStatus = HEADER;
+	}
+	else if (this->mUploadStatus == BODY
+			&& !st.empty()
+			&& st == this->mUploadEnd)
+	{
+		this->mUploadStatus = COMPLETE;
+		this->mRequest.setStatus(COMPLETE);
+	}
+	else if (this->mUploadStatus == BODY
+			&& !st.empty()
+			&& st == this->mUploadStart)
+	{
+		this->mUpload.push_back(std::vector<char>());
+		this->mUploadInfo.push_back(std::vector<std::string>());
+		this->mUploadStatus = HEADER;
+	}
+	else if (this->mUploadStatus == HEADER
+			&& !st.empty())
+		this->mUploadInfo.back().push_back(st);
+	else if (this->mUploadStatus == HEADER
+			&& st.empty())
+		this->mUploadStatus = BODY;
+	else if (this->mUploadStatus == BODY)
+	{
+		for (size_t i = 0; i < vt.size(); i++)
+			this->mUpload.back().push_back(vt[i]);
+	}
+	else
+		throw ConnectionException("Upload Body not match format", BAD_REQUEST);
 }
 
 void Connection::setContentType(std::string const & type)
@@ -556,6 +736,11 @@ void Connection::setCGI(std::string const & cgi)
 	this->mCGI = cgi;
 }
 
+bool Connection::checkReadDone(void)
+{
+	return (this->mStatus == COMPLETE && this->mRequest.getStatus() == COMPLETE);
+}
+
 # include <iostream>
 
 void Connection::printAll(void)
@@ -575,8 +760,13 @@ void Connection::printAll(void)
 		case PROC_CGI:
 			std::cout << "PROC_CGI";
 			break ;
+		case CGI_COMPLETE:
+			std::cout << "CGI_COMPLETE";
+			break ;
 		case COMPLETE:
 			std::cout << "COMPLETE";
+			break ;
+		default:
 			break ;
 	}
 	std::cout << std::endl;
@@ -608,11 +798,12 @@ void Connection::printAll(void)
 		std::cout << "\tUpload files: { " << std::endl;
 		for (size_t i = 0; i < this->mUpload.size(); i++)
 		{
-			std::cout << "\t\tUpload Header: {" << std::endl;
-			for (size_t j = 0; j < this->mUpload[i].size() - 1; j++)
-				std::cout << "\t\t\t" << this->mUpload[i][j] << std::endl;
-			std::cout << "\t\t}" << std::endl;
-			std::cout << "\t\tUpload Content: " << this->mUpload[i].back() << std::endl;;
+			std::cout << "\t\t";
+			for (size_t j = 0; j < this->mUpload[i].size() && j < 10; j++)
+			{
+				std::cout << this->mUpload[i][j];
+			}
+			std::cout << std::endl;
 		}
 		std::cout << "\t}" << std::endl;
 	}
@@ -624,32 +815,29 @@ void Connection::printAll(void)
 void Connection::addEnv(std::map<std::string, std::string> & envp)
 {
 	envp["AUTH_TYPE"] = "";
-	envp["QUERY_STRING"] = "";
+	envp["QUERY_STRING"] = this->mRequest.getQuery();
 	envp["REMOTE_ADDR"] = "";
 	envp["REMOTE_HOST"] = "";
 	envp["REMOTE_IDENT"] = "";
 	envp["REMOTE_USER"] = "";
-	envp["SCRIPT_NAME"] = "";
-	envp["SERVER_NAME"] = ""; // PATH_TRANSLATED랑 동일
+	envp["REDIRECT_STATUS"] = "200";
+	envp["SCRIPT_NAME"] = this->mCGI;
+	envp["SCRIPT_FILENAME"] = this->mCGI;
+	envp["SERVER_NAME"] = this->mRequest.findHeader("Host"); // PATH_TRANSLATED랑 동일
 	envp["GATEWAY_INTERFACE"] = "CGI/1.1";
 	envp["SERVER_PROTOCOL"] = "HTTP/1.1";
 	envp["SERVER_SOFTWARE"] = "webserv/1.0";
 	envp["PATH_TRANSLATED"] = this->mAbsolutePath;
 
-	std::string length;
-	std::stringstream ss;
-	eMethod method = this->mRequest.getMethod();
-	switch(method)
+	switch(this->mRequest.getMethod())
 	{
 		case GET :
 			envp["REQUEST_METHOD"] = "GET";
 			break;
 		case POST :
-			ss << this->mRequest.getContentLength();
-			ss >> length;
-			envp["CONTENT_LENGTH"] = length;
+			envp["CONTENT_LENGTH"] = ft::toString(this->mRequest.getBodySize(), 10);
 			envp["REQUEST_METHOD"] = "POST";
-			envp["CONTENT_TYPE"] = this->mRequest.getContentType();
+			envp["CONTENT_TYPE"] = this->mRequest.findHeader("Content-Type");
 			break;
 		case DELETE :
 			envp["REQUEST_METHOD"] = "DELETE";
@@ -659,10 +847,13 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 			break;
 	}
 
-	std::string url = this->mRequest.getUrl();
-	std::size_t pos = url.find("//");
-	url = url.substr(pos + 2, url.size() - pos);
-	pos = url.find("/");
-	url = url.substr(pos + 1, url.size() - pos);
-	envp["PATH_INFO"] = url;
+	envp["PATH_INFO"] = this->mRequest.getUrl();
+	
+	// envp["PATH_INFO"] = this->mAbsolutePath;
+	 envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
+	// envp["REQUEST_URI"] = this->mAbsolutePath;
+	//for (std::map<std::string, std::string>::iterator it = envp.begin(); it != envp.end(); it++)
+	//{
+	//	std::cout << it->first << " = " << it->second << std::endl;
+	//}
 }

@@ -1,12 +1,12 @@
-//Webserv
 #include "WebServ.hpp"
-#include "Connection.hpp"
-#include <cstdio>
-#include <dirent.h>
-#include <signal.h>
 
 void WebServ::run(Connection * clt)
 {
+	if (clt->getStatus() == CGI_COMPLETE)
+	{
+		clt->setStatus(COMPLETE);
+		return ;
+	}
 	if (clt->getStatus() < COMPLETE)
 	{
 		return ;
@@ -15,7 +15,6 @@ void WebServ::run(Connection * clt)
 	switch(clt->getMethod())
 	{
 		case GET:
-		case HEAD:
 			runGET(clt);
 			break;
 		case POST:
@@ -25,7 +24,7 @@ void WebServ::run(Connection * clt)
 			runDELETE(clt);
 			break;
 		default:
-			break;
+			throw ConnectionException("HEAD", MATHOD_NOT_ALLOWED);
 	}
 }
 
@@ -34,7 +33,16 @@ void WebServ::runGET(Connection * clt)
 	eProcessType procType = clt->getProcType();
 	if (procType == FILES)
 	{
-		clt->fillRequest();
+		DIR * dir = opendir(clt->getAbsolutePath());
+		if (dir == NULL)
+		{
+			clt->fillRequest();
+		}
+		else
+		{
+			closedir(dir);
+			throw ConnectionException("Is not file", NOT_FOUND);
+		}
 	}
 	else if (procType == AUTOINDEX)
 	{
@@ -70,7 +78,7 @@ void WebServ::runPOST(Connection * clt)
 	}
 	else if (procType == AUTOINDEX)
 	{
-		throw ConnectionException("Method not allowed", MATHOD_NOT_ALLOWED);
+		throw ConnectionException("Forbidden", FORBIDDEN);
 	}
 	else if (procType == CGI)
 	{
@@ -378,11 +386,13 @@ int WebServ::findServer(Connection &clt)
 		if (this->mServers[idx].getHost() == host)
 		{
 			clt.setServer(idx);
+			clt.setServerName(this->mServers[idx].getServerName());
 			return idx;
 		}
 	}
 	
 	clt.setServer(it->second.front());
+	clt.setServerName(this->mServers[it->second.front()].getServerName());
 	return it->second.front();
 }
 
@@ -400,6 +410,7 @@ void WebServ::activate()
 		struct kevent *curEvent = this->mKqueue.getEvent();
 		if (curEvent == NULL)
 			break ;
+
 		if (curEvent->udata == NULL
 				&& (curEvent->flags & EV_ERROR))
 			throw ManagerException("Server socket failed");
@@ -438,40 +449,52 @@ void WebServ::activate()
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EV_ERROR))
-				throw ManagerException("Connection socket failed");
+			{
+				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+				{
+					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
+				}
+				continue ;
+			}
 
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_READ))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
+				if (clt->getStatus() == PROC_CGI
+						&& curEvent->ident == static_cast<uintptr_t>(clt->getCGISocket()))
+				{
+					clt->fillRequestCGI();
+					continue ;
+				}
 				clt->readRequest();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
+				if (clt->checkReadDone())
+					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
+				clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				if (clt->getStatus() == PROC_CGI)
-				{
-					if (curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
+				if (clt->getStatus() == PROC_CGI
+						&& curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
-					else
-					{
-						clt->fillRequestCGI();
-						clt->setStatus(COMPLETE);
-						close(curEvent->ident);
-					}
-				}
 				else
 					this->run(clt);
 				if (clt->checkComplete())
 				{
+					clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
+					this->mLogger.putAccess("close connection");
 				}
+				if (clt->checkOvertime())
+					throw ConnectionException("Request Timeout", REQUEST_TIMEOUT);
 			}
 		} 
 		catch (ConnectionException & e)
@@ -479,12 +502,15 @@ void WebServ::activate()
 			this->mLogger.putError(e.what());
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			svr = findServer(*clt);
-			if (svr != -1 && clt != NULL)
+			if (clt != NULL)
 			{
+				if (svr == -1)
+					svr = this->mPortGroup[clt->getPort()].front();
 				Response errorResponse = this->mServers[svr].getErrorPage(e.getErrorCode(), e.what());
 				this->mSender.sendMessage(clt->getSocket(), errorResponse);
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 		catch (RedirectionException & e)
@@ -496,6 +522,7 @@ void WebServ::activate()
 				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 		catch(ManagerException & e)
@@ -505,6 +532,7 @@ void WebServ::activate()
 			if (clt != NULL)
 			{
 				clt->closeSocket();
+				this->mLogger.putAccess("close connection");
 			}
 		}
 	}
@@ -514,10 +542,9 @@ void WebServ::activate()
 		if (this->mConnection[i].getSocket() != -1
 				&& this->mConnection[i].checkOvertime())
 		{
-			int svr = this->findServer(this->mConnection[i]);
-			this->mSender.sendMessage(this->mConnection[i].getSocket(), this->mServers[svr].getErrorPage(408, this->mResponseCodeMSG[408]));
 			this->mConnection[i].closeSocket();
-			this->mLogger.putAccess("Time out: close connection");
+			this->mLogger.putError("Request Timeout");
+			this->mLogger.putAccess("close connection");
 		}
 	}
 }
@@ -533,12 +560,18 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 		Location *lct = svr->findLocation(url);
 		if (lct == NULL)
 			throw ConnectionException("Can't find Location", NOT_FOUND);
+		std::string str_url = lct->parseUrl(url);
 
 		if (!lct->checkMethod(clt->getMethod()))
-			throw ConnectionException("Not allowed Method", MATHOD_NOT_ALLOWED);
+			throw ConnectionException("Not allowed Method in Location", MATHOD_NOT_ALLOWED);
 
 		if (!lct->getRedirect().empty())
 			throw RedirectionException(lct->getRedirect(), svr->getServerName());
+		else if (clt->getType() == UPLOAD)
+		{
+				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
+				clt->setAbsolutePath(clt->getAbsolutePath(), str_url, "text/html");
+		}
 		else if (lct->checkIndexFile(url))
 		{
 			clt->setAbsolutePath(lct->getRoot(), lct->getIndex(), this->findMIMEType(lct->getIndex()));
@@ -546,28 +579,44 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 			{
 				clt->setType(CGI);
 				clt->setCGI(lct->getCGI(clt->getAbsolutePath()));
+				clt->setContentType("text/html");
 			}
 			else
 				clt->setType(FILES);
 		}
 		else if (lct->checkAutoindex())
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), "text/html");
-			std::string type = this->findMIMEType(clt->getUrl());
-			if (type != "application/octet-stream")
-				clt->setContentType(type);
-
-			clt->setType(AUTOINDEX);
+			clt->setAbsolutePath(lct->getRoot(), str_url, "text/html");
+			std::string abs_path = clt->getAbsolutePath();
+			DIR * dir = opendir(abs_path.c_str());
+			if (dir == NULL)
+			{
+				if (lct->checkCGI(abs_path))
+				{
+					clt->setType(CGI);
+					clt->setCGI(lct->getCGI(abs_path));
+				}
+				else
+				{
+					clt->setType(FILES);
+					clt->setContentType(this->findMIMEType(abs_path));
+				}
+			}
+			else
+			{
+				closedir(dir);
+				clt->setType(AUTOINDEX);
+			}
 		}
-		else if (lct->checkCGI(clt->getUrl()))
+		else if (lct->checkCGI(str_url))
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), str_url, "text/html");
 			clt->setType(CGI);
-			clt->setCGI(lct->getCGI(clt->getUrl()));
+			clt->setCGI(lct->getCGI(str_url));
 		}
 		else
 		{
-			clt->setAbsolutePath(lct->getRoot(), clt->getUrl(), this->findMIMEType(clt->getUrl()));
+			clt->setAbsolutePath(lct->getRoot(), str_url, this->findMIMEType(str_url));
 			clt->setType(FILES);
 		}
 		clt->setStatus(HEADER);
@@ -575,32 +624,17 @@ void WebServ::parseRequest(Connection *clt, Server *svr)
 
 	if (clt->getStatus() == HEADER && clt->checkStatus())
 	{
-		eMethod  method = clt->getMethod();
-		if (method == GET || method == DELETE)
-			clt->setStatus(COMPLETE);
-		else if (method == POST)
-		{
-			if (clt->checkUpload())
-			{
-				std::vector<std::string> url = this->parseUrl(clt->getUrl());
-				Location *lct = svr->findLocation(url);
-				if (lct == NULL)
-					throw ConnectionException("Can't find Location", NOT_FOUND);
-
-				clt->setAbsolutePath(lct->getRoot(), lct->getUpload(), "text/html");
-				clt->setAbsolutePath(clt->getAbsolutePath(), clt->getUrl(), "text/html");
-
-				clt->setType(UPLOAD);
-			}
+		clt->setStatus(COMPLETE);
+		if (clt->getMethod() == POST)
 			clt->setStatus(BODY);
-		}
 	}
 
-	if (clt->getStatus() == BODY && clt->checkStatus())
+	if (clt->getStatus() == BODY)
 	{
-		if (clt->getType() == UPLOAD)
-			clt->setUpload();
-		clt->setStatus(COMPLETE);
+		if (clt->getBodySize() > svr->getBodySize())
+			throw ConnectionException("Request Body Too Long" ,REQUEST_ENTITY_TOO_LONG);
+		if (clt->checkStatus())
+			clt->setStatus(COMPLETE);
 	}
 }
 
@@ -688,9 +722,7 @@ void WebServ::validConfig(std::string contents)
 				&& serverFlag == true
 				&& locationFlag == false
 				&& limitBodySizeFlag == false
-				&& line.size() == 2
-				&& (line.back().back() != 'M' 
-					|| line.back().back() != 'K'))
+				&& line.size() == 2)
 		{
 			std::string bodySize = line.back();
 			for (size_t i = 1; i < bodySize.size() - 1; i++)
@@ -698,7 +730,12 @@ void WebServ::validConfig(std::string contents)
 				if (bodySize[i] < '0' || bodySize[i] > '9')
 					throw rows;
 			}
-			limitBodySizeFlag = true;
+			if (bodySize.back() == 'M'
+					|| bodySize.back() == 'K'
+					|| ('0' <= bodySize.back() && bodySize.back() <= '9'))
+				limitBodySizeFlag = true;
+			else
+				throw rows;
 		}
 		else if (line.front() == LOCATION_BLOCK
 				&& serverFlag == true
@@ -715,7 +752,8 @@ void WebServ::validConfig(std::string contents)
 				std::string method = line[i];
 				if (method != "GET"
 						&& method != "POST"
-						&& method != "DELETE")
+						&& method != "DELETE"
+						&& method != "HEAD")
 					throw rows;
 			}
 			allowMethodFlag = true;
@@ -766,6 +804,7 @@ void WebServ::validConfig(std::string contents)
 			hostNameFlag = false;
 			serverNameFlag = false;
 			errPageFlag = false;
+			limitBodySizeFlag = false;
 		}
 		else if (line.front() == BLOCK_CLOSE
 				&& locationFlag == true
@@ -862,6 +901,8 @@ void	WebServ::parseConfig(std::string & contents)
 					curLct->addMethod(POST);
 				else if (line[i] == "DELETE")
 					curLct->addMethod(DELETE);
+				else if (line[i] == "HEAD")
+					curLct->addMethod(HEAD);	
 			}
 		}
 		else if (line.front() == ROOT_PATH)

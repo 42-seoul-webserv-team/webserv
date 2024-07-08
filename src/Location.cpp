@@ -55,8 +55,7 @@ std::string Location::getCGI(std::string const & url)
 
 bool Location::checkMethod(eMethod reqMethod)
 {
-	for (std::vector<eMethod>::iterator it = this->mMethod.begin();
-			it != this->mMethod.end(); it++)
+	for (std::vector<eMethod>::iterator it = this->mMethod.begin(); it != this->mMethod.end(); it++)
 	{
 		if (*it == reqMethod)
 			return true;
@@ -119,6 +118,27 @@ void Location::setUpload(std::string const & dir)
 void Location::clearMethod(void)
 {
 	this->mMethod.clear();
+}
+
+std::string Location::parseUrl(std::vector<std::string> & url)
+{
+	size_t idx = 0;
+	std::string ret = "/";
+
+	while (idx < url.size())
+	{
+		if (this->mPath[idx] != url[idx])
+			break ;
+		idx++;
+	}
+	
+	while (idx < url.size())
+	{
+		ret += url[idx] + "/";
+		idx++;
+	}
+	ret.pop_back();
+	return ret;
 }
 
 bool Location::checkIndexFile(std::vector<std::string> & url)

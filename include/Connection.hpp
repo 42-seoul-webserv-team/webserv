@@ -1,10 +1,15 @@
 #ifndef CONNECTION_HPP
 # define CONNECTION_HPP
 
+# include <fcntl.h>
 # include <sys/time.h>
+# include <dirent.h>
 # include <unistd.h>
 # include <vector>
+# include <deque>
 # include <signal.h>
+# include <string>
+# include <sstream>
 # include "Server.hpp"
 # include "Request.hpp"
 # include "Response.hpp"
@@ -21,12 +26,17 @@ class Connection
 		int mServerPort;
 		int mServer;
 		std::string  mAbsolutePath;
-		std::string mRemainStr;
-		std::vector<std::vector <std::string> > mUpload;
+		std::deque<char> mRemain;
 		std::string mCGI;
 		int mCGIfd[2];
 		int mCGIproc;
 		
+		std::vector<std::vector <char> > mUpload;
+		std::vector<std::vector <std::string> > mUploadInfo;
+		std::string mUploadStart;
+		std::string mUploadEnd;
+		eStatus mUploadStatus;
+
 		Request mRequest;
 		Response mResponse;
 		eStatus mStatus;
@@ -37,6 +47,9 @@ class Connection
 		
 		void renewTime(void);
 		char **convert(std::map<std::string, std::string> env);
+		void setBody(void);
+		void setUpload(void);
+		void setUploadData(std::string & st, std::vector<char> & vt);
 
 	public:
 		Connection(void);
@@ -60,12 +73,15 @@ class Connection
 		std::string getReqBody(void) const;
 		Response getResponse(void) const;
 		char * getAbsolutePath(void) const;
+		int getBodySize(void);
+		std::string getQuery(void);
+		int getCGISocket(void);
 
 		void setAccept(int socket, int port);
 		void setServer(int svr);
+		void setServerName(std::string const & svr);
 		void setStatus(eStatus status);
 		void setAbsolutePath(std::string const & root, std::string const & url, std::string const & type);
-		void setUpload(void);
 		void setType(eProcessType type);
 		void setCGI(std::string const & cgi);
 		void setContentType(std::string const & type);
@@ -86,6 +102,7 @@ class Connection
 		void isTimeOver(void) const;
 		void processCGI(Kqueue & kque, std::map<std::string, std::string> envp);
 		void uploadFiles(void);
+		bool checkReadDone(void);
 
 		void printAll(void);
 		

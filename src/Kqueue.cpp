@@ -15,6 +15,8 @@ Kqueue::~Kqueue(void)
 	this->mChangeList.clear();
 }
 
+#include <iostream>
+
 int Kqueue::checkEvent(void)
 {
 	if (!this->mEventSize && !this->mChangeList.size())
@@ -31,7 +33,6 @@ struct kevent *Kqueue::getEvent(void)
 {
 	if (this->mKqIdx >= this->mEventSize)
 		return NULL;
-
 	return &(this->mEventList[this->mKqIdx++]);
 }
 
@@ -41,6 +42,34 @@ void Kqueue::addEvent(int fd, void *udata)
 	if (udata == NULL)
 		EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
 	else
-		EV_SET(&tmp, fd, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, udata);
+		EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_EOF, 0, 0, udata);
 	this->mChangeList.push_back(tmp);
+}
+
+void Kqueue::addCGI(int fd, void *udata)
+{
+	if (udata == NULL)
+		return ;
+
+	struct kevent tmp;
+
+	EV_SET(&tmp, fd, EVFILT_READ, EV_ADD | EV_ENABLE | EV_EOF, 0, 0, udata);
+	this->mChangeList.push_back(tmp);
+}
+
+void Kqueue::changeEvent(int fd, void *udata)
+{
+	if (udata == NULL)
+		return ;
+
+	{
+		struct kevent tmp;
+		EV_SET(&tmp, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE , 0, 0, udata);
+		this->mChangeList.push_back(tmp);
+	}
+	{
+		struct kevent tmp;
+		EV_SET(&tmp, fd, EVFILT_READ, EV_DISABLE , 0, 0, udata);
+		this->mChangeList.push_back(tmp);
+	}
 }

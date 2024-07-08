@@ -32,6 +32,7 @@ class Server
 		int	getSocket(void);
 		std::string getHost(void);
 		std::string getServerName(void);
+		int getBodySize(void);
 		Response getErrorPage(int errcode, std::string const & errmsg);
 		Location *getLocation(size_t idx);
 		size_t	getLocationSize(void);

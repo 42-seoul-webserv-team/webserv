@@ -11,6 +11,9 @@
 # include <netinet/in.h>
 # include <fcntl.h>
 # include <dirent.h>
+# include <cstdio>
+# include <dirent.h>
+# include <signal.h>
 # include "ft.hpp"
 # include "Configure.hpp"
 # include "Server.hpp"
@@ -20,6 +23,7 @@
 # include "Logger.hpp"
 # include "Message.hpp"
 # include "value.hpp"
+# include "enum.hpp"
 # include "ManagerExcption.hpp"
 # include "ConnectionException.hpp"
 # include "RedirectionException.hpp"

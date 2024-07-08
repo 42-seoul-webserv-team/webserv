@@ -1,6 +1,7 @@
 .vscode
+.DS_Store
 tester
 cgi_tester
 *.log
-YoupiBanane
 dir
+conf/default.conf
