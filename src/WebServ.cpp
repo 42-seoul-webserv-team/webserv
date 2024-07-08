@@ -722,9 +722,7 @@ void WebServ::validConfig(std::string contents)
 				&& serverFlag == true
 				&& locationFlag == false
 				&& limitBodySizeFlag == false
-				&& line.size() == 2
-				&& (line.back().back() != 'M' 
-					|| line.back().back() != 'K'))
+				&& line.size() == 2)
 		{
 			std::string bodySize = line.back();
 			for (size_t i = 1; i < bodySize.size() - 1; i++)
@@ -732,7 +730,12 @@ void WebServ::validConfig(std::string contents)
 				if (bodySize[i] < '0' || bodySize[i] > '9')
 					throw rows;
 			}
-			limitBodySizeFlag = true;
+			if (bodySize.back() == 'M'
+					|| bodySize.back() == 'K'
+					|| ('0' <= bodySize.back() && bodySize.back() <= '9'))
+				limitBodySizeFlag = true;
+			else
+				throw rows;
 		}
 		else if (line.front() == LOCATION_BLOCK
 				&& serverFlag == true
