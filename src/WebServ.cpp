@@ -315,7 +315,6 @@ void WebServ::configure(std::string const & config)
 	this->parseConfig(contents);
 	this->listenServer();
 	this->mLogger.open();
-	this->printAll();
 }
 
 void WebServ::listenServer(void)
@@ -474,7 +473,6 @@ void WebServ::activate()
 					this->parseRequest(clt, &this->mServers[svr]);
 				if (clt->checkReadDone())
 					this->mKqueue.changeEvent(curEvent->ident, curEvent->udata);
-				clt->printAll();
 			}
 			if (curEvent->udata != NULL
 					&& (curEvent->flags & EVFILT_WRITE))
@@ -487,7 +485,6 @@ void WebServ::activate()
 					this->run(clt);
 				if (clt->checkComplete())
 				{
-					clt->printAll();
 					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
