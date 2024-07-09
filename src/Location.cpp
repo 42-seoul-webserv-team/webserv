@@ -136,7 +136,8 @@ std::string Location::parseUrl(std::vector<std::string> & url)
 		ret += url[idx] + "/";
 		idx++;
 	}
-	ret.pop_back();
+	if (ret.size() != 0)
+		ret.erase(ret.size() - 1);
 	return ret;
 }
 

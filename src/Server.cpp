@@ -46,7 +46,6 @@ int Server::getBodySize(void)
 Location *Server::getLocation(size_t idx)
 {
 	if (this->mLocation.empty()
-			|| idx < 0
 			|| this->mLocation.size() < idx)
 		return NULL;
 	return &this->mLocation[idx];
@@ -99,13 +98,14 @@ void Server::setSocket(int socket)
 void Server::setBodySize(std::string const & dataSize)
 {
 	std::string tmp = dataSize;
-	char sizeForm = tmp.back();
+	char sizeForm = *tmp.rbegin();
 	size_t bodysize = 0;
 	if ('0' <= sizeForm && sizeForm <= '9')
 		bodysize = ft::toInt(tmp, 10);
 	else
 	{
-		tmp.pop_back();
+		if (tmp.size() != 0)
+			tmp.erase(tmp.size() - 1);
 		bodysize = ft::toInt(tmp, 10);
 		switch (sizeForm) {
 			case 'M':
@@ -151,7 +151,8 @@ Response Server::getErrorPage(int errcode, std::string const & errmsg)
 			throw ;
 		while (errPage.good())
 			body.push_back(errPage.get());
-		body.pop_back();
+		if (body.size() != 0)
+			body.erase(body.size() - 1);
 		if (errPage.bad())
 		{
 			errPage.close();
