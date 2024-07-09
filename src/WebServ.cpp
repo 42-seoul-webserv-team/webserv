@@ -296,7 +296,7 @@ void WebServ::configure(std::string const & config)
 		contents.push_back(conf.get());
 
 	if (!contents.empty())
-		contents.pop_back(); 
+		contents.erase(contents.size() - 1); 
 	
 	if (conf.bad())
 	{

@@ -66,7 +66,7 @@ void Connection::fillRequest(void)
 		body.push_back(file.get());
 
 	if (!body.empty())
-		body.pop_back();
+		body.erase(body.size() - 1);
 
 	this->mResponse.setBody(body);
 	file.close();
@@ -230,8 +230,8 @@ void Connection::uploadFiles(void)
 		try
 		{
 			std::string path = this->getAbsolutePath();
-			if (path.back() == '/')
-				path.pop_back();
+			if (*path.rbegin() == '/')
+				path.erase(path.size() - 1);
 
 			if (access(path.c_str(), F_OK) != 0)
 				throw "fail";
@@ -254,7 +254,7 @@ void Connection::uploadFiles(void)
 					if (pos == std::string::npos)
 						continue ;
 					file_name = this->mUploadInfo[j][i].substr(pos + 9);
-					if (!file_name.empty() && file_name.front() == '\"')
+					if (!file_name.empty() && *file_name.begin() == '\"')
 					{
 						file_name.erase(0, 1);
 						pos = file_name.find('\"');
@@ -589,10 +589,10 @@ void Connection::setAbsolutePath(std::string const & root, std::string const & u
 {
 	std::string path = root;
 
-	if (path.back() == '/')
-		path.pop_back();
+	if (*path.rbegin() == '/')
+		path.erase(path.size() - 1);
 
-	if (url.front() != '/')
+	if (*url.begin() != '/')
 		path += "/" + url;
 	else
 		path += url;

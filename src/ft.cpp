@@ -40,16 +40,16 @@ int	ft::toInt(std::string const & str, int unit)
 	ft::trim(org);
 
 	while (!org.empty() 
-			&& (org.front() == '-' || org.front() == '+'))
+			&& (*org.begin() == '-' || *org.begin() == '+'))
 	{
-		if (org.front() == '-')
+		if (*org.begin() == '-')
 			minus *= -1;
 		org.erase(0, 1);
 	}
 
 	while (!org.empty())
 	{
-		pos = form.find(org.front());
+		pos = form.find(*org.begin());
 		if (pos == std::string::npos)
 			throw static_cast<int>(ret);
 		org.erase(0, 1);
@@ -59,7 +59,7 @@ int	ft::toInt(std::string const & str, int unit)
 	return static_cast<int>(ret);
 }
 
-std::string ft::toString(ssize_t nbr, int unit)
+std::string ft::toString(long long nbr, int unit)
 {
 	std::string ret = "";
 	std::string sign = "";
