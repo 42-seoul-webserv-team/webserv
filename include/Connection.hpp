@@ -3,6 +3,7 @@
 
 # include <fcntl.h>
 # include <unistd.h>
+# include <stdlib.h>
 # include <signal.h>
 # include <dirent.h>
 # include <sys/time.h>
@@ -13,6 +14,7 @@
 # include <string>
 # include <sstream>
 # include <iostream>
+# include <algorithm>
 
 # include "ft.hpp"
 # include "enum.hpp"

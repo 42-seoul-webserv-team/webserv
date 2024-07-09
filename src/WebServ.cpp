@@ -727,9 +727,9 @@ void WebServ::validConfig(std::string contents)
 				if (bodySize[i] < '0' || bodySize[i] > '9')
 					throw rows;
 			}
-			if (bodySize.back() == 'M'
-					|| bodySize.back() == 'K'
-					|| ('0' <= bodySize.back() && bodySize.back() <= '9'))
+			if (*bodySize.rbegin() == 'M'
+					|| *bodySize.rbegin() == 'K'
+					|| ('0' <= *bodySize.rbegin() && *bodySize.rbegin() <= '9'))
 				limitBodySizeFlag = true;
 			else
 				throw rows;

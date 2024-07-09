@@ -14,9 +14,9 @@ Logger::~Logger(void)
 eOpenFail Logger::open(void)
 {	
 	if (!this->mAccess.is_open())
-		this->mAccess.open(this->mALogFile, std::fstream::app);
+		this->mAccess.open(this->mALogFile.c_str(), std::fstream::app);
 	if (!this->mError.is_open())
-		this->mError.open(this->mELogFile, std::fstream::app);
+		this->mError.open(this->mELogFile.c_str(), std::fstream::app);
 
 	bool access = this->mAccess.is_open();
 	bool error = this->mError.is_open();

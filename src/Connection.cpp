@@ -180,7 +180,7 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
-		std::exit(ret);
+		exit(ret);
 	}
 	close(inputFile);
 	if (this->mRequest.getMethod() == POST)
@@ -289,7 +289,7 @@ void Connection::uploadFiles(void)
 			}
 
 			std::ofstream output;
-			output.open(file, std::fstream::out);
+			output.open(file.c_str(), std::fstream::out);
 			if (!output.is_open())
 				throw "fail";
 			for (size_t i = 0; i < this->mUpload[j].size(); i++)
@@ -604,7 +604,7 @@ void Connection::setAbsolutePath(std::string const & root, std::string const & u
 void Connection::setUpload(void)
 {
 	while (!this->mRemain.empty()
-			&& this->mRemain.end() != find(this->mRemain.begin(), this->mRemain.end(), '\n')
+			&& this->mRemain.end() != std::find(this->mRemain.begin(), this->mRemain.end(), '\n')
 			&& this->mRequest.getStatus() != COMPLETE)
 	{
 		std::vector<char> line;

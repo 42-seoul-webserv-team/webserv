@@ -2,6 +2,7 @@
 # define LOGGER_HPP
 
 # include <ctime>
+# include <iomanip>
 # include <fstream>
 # include <iostream>
 # include <exception>
