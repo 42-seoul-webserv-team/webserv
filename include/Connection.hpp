@@ -2,21 +2,25 @@
 # define CONNECTION_HPP
 
 # include <fcntl.h>
-# include <sys/time.h>
-# include <dirent.h>
 # include <unistd.h>
-# include <vector>
-# include <deque>
 # include <signal.h>
+# include <dirent.h>
+# include <sys/time.h>
+# include <sys/socket.h>
+
+# include <deque>
+# include <vector>
 # include <string>
 # include <sstream>
+# include <iostream>
+
+# include "ft.hpp"
+# include "enum.hpp"
+# include "value.hpp"
+# include "Kqueue.hpp"
 # include "Server.hpp"
 # include "Request.hpp"
 # include "Response.hpp"
-# include "ft.hpp"
-# include "enum.hpp"
-# include "Kqueue.hpp"
-# include "value.hpp"
 # include "ConnectionException.hpp"
 
 class Connection
@@ -58,7 +62,6 @@ class Connection
 
 		int getSocket(void);
 		int getServer(void);
-		eStatus getStatus(void);
 		int getPort(void);
 		std::string getHost(void);
 		std::string getUrl(void);
@@ -74,7 +77,6 @@ class Connection
 		Response getResponse(void) const;
 		char * getAbsolutePath(void) const;
 		int getBodySize(void);
-		std::string getQuery(void);
 		int getCGISocket(void);
 
 		void setAccept(int socket, int port);
@@ -105,8 +107,7 @@ class Connection
 		bool checkReadDone(void);
 
 		void printAll(void);
-		
-		// juhyelee - add cgi env
+
 		void addEnv(std::map<std::string, std::string> & envp);
 };
 

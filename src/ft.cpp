@@ -1,5 +1,4 @@
 #include "ft.hpp"
-#include <iostream>
 
 std::string ft::trim(std::string & str)
 {

@@ -1,9 +1,11 @@
 #ifndef LOCATION_HPP
 # define LOCATION_HPP
 
-# include <string>
 # include <map>
+# include <string>
 # include <vector>
+# include <iostream>
+
 # include "enum.hpp"
 
 # define HTTP_VERSION "HTTP/1.1"

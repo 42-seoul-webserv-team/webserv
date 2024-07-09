@@ -1,11 +1,14 @@
 #ifndef KQUEUE_HPP
 # define KQUEUE_HPP
 
-# include <sys/event.h>
 # include <unistd.h>
+# include <sys/event.h>
+
 # include <vector>
-# include "ManagerExcption.hpp"
+# include <iostream>
+
 # include "value.hpp"
+# include "ManagerExcption.hpp"
 
 class Kqueue
 {

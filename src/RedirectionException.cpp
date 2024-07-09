@@ -1,6 +1,4 @@
 #include "RedirectionException.hpp"
-#include <string>
-#include <stdexcept>
 
 RedirectionException::RedirectionException(std::string const redirLoc, std::string const serverName)
 	: std::domain_error("redirection")

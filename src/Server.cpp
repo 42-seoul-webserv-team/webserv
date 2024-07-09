@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include <iostream>
 
 Server::Server(void)
 {
@@ -49,11 +50,6 @@ Location *Server::getLocation(size_t idx)
 			|| this->mLocation.size() < idx)
 		return NULL;
 	return &this->mLocation[idx];
-}
-
-size_t	Server::getLocationSize(void)
-{
-	return this->mLocation.size();
 }
 
 Location *Server::findLocation(std::vector<std::string> url)
@@ -220,8 +216,6 @@ std::string Server::getDefaultError(int errcode, std::string const & errmsg)
 
 	return body;
 }
-
-# include <iostream>
 
 void Server::printAll(void)
 {

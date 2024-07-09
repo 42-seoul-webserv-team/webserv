@@ -1,13 +1,10 @@
 #include "HTTPSender.hpp"
 
 HTTPSender::HTTPSender()
-{
-}
+{}
 
 HTTPSender::~HTTPSender()
-{
-
-}
+{}
 
 std::string	HTTPSender::getDate(void)
 {
@@ -22,16 +19,13 @@ std::string	HTTPSender::getDate(void)
 
 std::string	HTTPSender::makeMessage(Response response)
 {
-	//struct tm	*newtime;
 	std::string	message;
 
 	message.reserve(800);
-	// status line
 	message += "HTTP/1.1 ";
 	message += response.getCode() + " ";
 	message += response.getStatusMsg() + CRLF;
 
-	// header lines
 	message += this->getDate();
 	message += "Server: " + response.getServerName() + CRLF;
 	message += "Connection: Closed\r\n";
@@ -39,10 +33,6 @@ std::string	HTTPSender::makeMessage(Response response)
 	message += "Content-Length: " + response.getContentLength() + CRLF;
 	message += "Content-Type: " + response.getContentType() + CRLF;
 
-	//if (atoi(response.getContentLength().c_str()) != 0)
-	//	message += response.getContentType() + CRLF;
-
-	// Blank line
 	message += CRLF;
 
 	message += response.getBody();
@@ -57,7 +47,7 @@ void	HTTPSender::sendMessage(int sockfd, const Response &response)
 	send(sockfd, message.c_str(), message.size(), 0);
 }
 
-std::string	HTTPSender::makeMessage(std::string location, std::string serverName) // redirection
+std::string	HTTPSender::makeMessage(std::string location, std::string serverName)
 {
 	std::string message;
 
@@ -72,7 +62,7 @@ std::string	HTTPSender::makeMessage(std::string location, std::string serverName
 	return (message);
 }
 
-void	HTTPSender::sendMessage(int sockfd, std::string location, std::string serverName) // redirection
+void	HTTPSender::sendMessage(int sockfd, std::string location, std::string serverName)
 {
 	std::string	message = this->makeMessage(location, serverName);
 

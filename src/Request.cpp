@@ -1,5 +1,5 @@
 #include "Request.hpp"
-#include <iostream>
+
 Request::Request(void)
 {
 	this->mReadStatus = STARTLINE;
@@ -56,6 +56,7 @@ std::string Request::findHeader(std::string const & key)
 {
 	return this->mHeader[key];
 }
+
 void Request::set(std::string const & line)
 {
 	if (this->mReadStatus == COMPLETE)
@@ -238,22 +239,6 @@ bool Request::isChunk(void)
 {
 	return this->mContentChunk;
 }
-
-bool Request::checkBodyComplete(void)
-{
-	if (this->mReadStatus == COMPLETE)
-		return true;
-	else if (this->mReadStatus < BODY)
-		return false;
-
-	if (this->mHeader["Content-Length"].empty())
-		return false;
-
-	this->mReadStatus = COMPLETE;
-	return true;
-}
-
-# include <iostream>
 
 void Request::printAll(void)
 {

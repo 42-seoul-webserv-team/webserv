@@ -107,7 +107,7 @@ void WebServ::runDELETE(Connection * clt)
 		else
 		{
 			struct dirent * file = readdir(dir);
-			file = readdir(dir); 
+			file = readdir(dir);
 			while ((file = readdir(dir)) != NULL)
 			{
 				if (std::remove(file->d_name) < 0)

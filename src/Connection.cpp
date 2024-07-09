@@ -1,8 +1,5 @@
 #include "Connection.hpp"
 
-#include <iostream>
-#include <sys/socket.h>
-
 eStatus Connection::getReadStatus(void) const
 {
 	return this->mRequest.getStatus();
@@ -183,7 +180,6 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 			NULL
 		};
 		int ret = execve(argv[0], argv, CGIenvp);
-		std::cout << "fail" << std::endl;
 		std::exit(ret);
 	}
 	close(inputFile);
@@ -479,6 +475,7 @@ void Connection::setBody(void)
 		this->mRequest.set(line);
 	}
 }
+
 void Connection::closeSocket(void)
 {
 	if (this->mSocket != -1)
@@ -726,7 +723,7 @@ void Connection::setType(eProcessType type)
 	this->mProcType = type;
 }
 
-eStatus Connection::getStatus(void)
+eStatus Connection::getStatus(void) const
 {
 	return this->mStatus;
 }
@@ -740,8 +737,6 @@ bool Connection::checkReadDone(void)
 {
 	return (this->mStatus == COMPLETE && this->mRequest.getStatus() == COMPLETE);
 }
-
-# include <iostream>
 
 void Connection::printAll(void)
 {
@@ -823,7 +818,7 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 	envp["REDIRECT_STATUS"] = "200";
 	envp["SCRIPT_NAME"] = this->mCGI;
 	envp["SCRIPT_FILENAME"] = this->mCGI;
-	envp["SERVER_NAME"] = this->mRequest.findHeader("Host"); // PATH_TRANSLATED랑 동일
+	envp["SERVER_NAME"] = this->mRequest.findHeader("Host");
 	envp["GATEWAY_INTERFACE"] = "CGI/1.1";
 	envp["SERVER_PROTOCOL"] = "HTTP/1.1";
 	envp["SERVER_SOFTWARE"] = "webserv/1.0";
@@ -848,12 +843,5 @@ void Connection::addEnv(std::map<std::string, std::string> & envp)
 	}
 
 	envp["PATH_INFO"] = this->mRequest.getUrl();
-	
-	// envp["PATH_INFO"] = this->mAbsolutePath;
-	 envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
-	// envp["REQUEST_URI"] = this->mAbsolutePath;
-	//for (std::map<std::string, std::string>::iterator it = envp.begin(); it != envp.end(); it++)
-	//{
-	//	std::cout << it->first << " = " << it->second << std::endl;
-	//}
+	envp["REQUEST_URI"] = this->mRequest.getUrl() + this->mRequest.getQuery();
 }

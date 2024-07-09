@@ -1,8 +1,4 @@
 #include "ConnectionException.hpp"
-#include "enum.hpp"
-
-#include <string>
-#include <stdexcept>
 
 ConnectionException::ConnectionException(std::string const & errorMsg, eHTTPStatus const errorCode)
 	: std::logic_error(errorMsg)

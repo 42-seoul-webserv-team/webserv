@@ -5,10 +5,11 @@
 # include <vector>
 # include <fstream>
 # include <iostream>
+
 # include "ft.hpp"
+# include "value.hpp"
 # include "Location.hpp"
 # include "Response.hpp"
-# include "value.hpp"
 
 class Server
 {
@@ -35,7 +36,6 @@ class Server
 		int getBodySize(void);
 		Response getErrorPage(int errcode, std::string const & errmsg);
 		Location *getLocation(size_t idx);
-		size_t	getLocationSize(void);
 		Location *findLocation(std::vector<std::string> url);
 
 		void setPort(int port);

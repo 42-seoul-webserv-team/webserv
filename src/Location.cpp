@@ -1,5 +1,4 @@
 #include "Location.hpp"
-#include <iostream>
 
 Location::Location(void)
 {
@@ -164,8 +163,6 @@ bool Location::checkCGI(std::string const & url)
 
 	return true;
 }
-
-# include <iostream>
 
 void Location::printAll(void)
 {

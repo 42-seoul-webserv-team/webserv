@@ -1,29 +1,29 @@
 #ifndef WEBSERV_HPP
 # define WEBSERV_HPP
 
-# include <iostream>
-
-# include <vector>
 # include <map>
-# include <fstream>
-# include <exception>
-# include <sys/socket.h>
-# include <netinet/in.h>
-# include <fcntl.h>
-# include <dirent.h>
+# include <vector>
 # include <cstdio>
-# include <dirent.h>
+# include <fstream>
+# include <iostream>
+# include <exception>
+
+# include <fcntl.h>
 # include <signal.h>
+# include <dirent.h>
+# include <netinet/in.h>
+# include <sys/socket.h>
+
 # include "ft.hpp"
-# include "Configure.hpp"
-# include "Server.hpp"
-# include "Connection.hpp"
-# include "Kqueue.hpp"
-# include "HTTPSender.hpp"
-# include "Logger.hpp"
-# include "Message.hpp"
-# include "value.hpp"
 # include "enum.hpp"
+# include "value.hpp"
+# include "Logger.hpp"
+# include "Kqueue.hpp"
+# include "Server.hpp"
+# include "Message.hpp"
+# include "Configure.hpp"
+# include "Connection.hpp"
+# include "HTTPSender.hpp"
 # include "ManagerExcption.hpp"
 # include "ConnectionException.hpp"
 # include "RedirectionException.hpp"
@@ -65,7 +65,6 @@ class WebServ {
 		void configure(std::string const & config);
 		void activate(void);
 		void setEnv(char **&envp);
-
 };
 
 #endif

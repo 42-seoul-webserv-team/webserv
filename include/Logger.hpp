@@ -1,10 +1,11 @@
 #ifndef LOGGER_HPP
 # define LOGGER_HPP
 
-# include <iostream>
-# include <fstream>
-# include <exception>
 # include <ctime>
+# include <fstream>
+# include <iostream>
+# include <exception>
+
 # include "ft.hpp"
 # include "enum.hpp"
 # include "value.hpp"

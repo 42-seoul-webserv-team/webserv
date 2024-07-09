@@ -21,7 +21,6 @@ enum eOpenFail
 	NOT, ACCESS, ERROR,	BOTH
 };
 
-// juhyelee - for Connection Exception
 enum eHTTPStatus
 {
 	OK = 200,

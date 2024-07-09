@@ -1,12 +1,14 @@
 #ifndef REQUEST_HPP
 # define REQUEST_HPP
 
-# include <string>
 # include <map>
-# include "ConnectionException.hpp"
-# include "enum.hpp"
+# include <string>
+# include <iostream>
+
 # include "ft.hpp"
+# include "enum.hpp"
 # include "value.hpp"
+# include "ConnectionException.hpp"
 
 class Request
 {
@@ -42,7 +44,6 @@ class Request
 		std::string getBody(void) const;
 		std::string findHeader(std::string const & key);
 		void set(std::string const & line);
-		bool checkBodyComplete(void);
 		std::string getQuery(void);
 		bool isChunk(void);
 
@@ -51,7 +52,6 @@ class Request
 		int getContentLength(void) const;
 		void setContentLength(int length);
 		std::string getContentType(void) const;
-
 };
 
 #endif

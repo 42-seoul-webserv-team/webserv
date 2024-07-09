@@ -7,3 +7,4 @@ dir
 conf/default.conf
 *.o
 *.d
+Webserv

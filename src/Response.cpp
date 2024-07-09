@@ -1,4 +1,5 @@
 #include "Response.hpp"
+#include <iostream>
 
 Response::Response(void)
 {
@@ -80,8 +81,6 @@ void Response::setBody(std::string const & body)
 	this->mContentLength = ft::toString(body.size(), 10);
 	this->mBody = body;
 }
-
-# include <iostream>
 
 void Response::printAll(void)
 {

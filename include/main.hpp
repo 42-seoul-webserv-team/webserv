@@ -2,7 +2,9 @@
 # define MAIN_HPP
 
 # include <signal.h>
+
 # include <iostream>
+
 # include "WebServ.hpp"
 
 bool gSignal;

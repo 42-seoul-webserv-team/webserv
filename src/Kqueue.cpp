@@ -15,8 +15,6 @@ Kqueue::~Kqueue(void)
 	this->mChangeList.clear();
 }
 
-#include <iostream>
-
 int Kqueue::checkEvent(void)
 {
 	if (!this->mEventSize && !this->mChangeList.size())
