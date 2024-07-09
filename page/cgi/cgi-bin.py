@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 
 cgitb.enable()
 
-script_dir = os.path.dirname(os.path.abspath(__file__)) + "/page/cgi"
+script_dir = os.path.dirname(os.path.abspath(__file__)) + "/page/cgi/upload"
 upload_dir = script_dir
 
 def print_debug(message):
@@ -83,7 +83,7 @@ def generate_html(message=""):
     <script>
     function deleteFile(filename) {
         if (confirm('정말로 이 파일을 삭제하시겠습니까?')) {
-            fetch(`${window.location.href}/${filename}`, {
+            fetch(`${window.location.href}/upload/${filename}`, {
                 method: 'DELETE',
             })
             .then(response => response.text())
