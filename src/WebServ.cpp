@@ -24,7 +24,7 @@ void WebServ::run(Connection * clt)
 			runDELETE(clt);
 			break;
 		default:
-			throw ConnectionException("HEAD", MATHOD_NOT_ALLOWED);
+			throw ConnectionException("Unknown Method", MATHOD_NOT_ALLOWED);
 	}
 }
 
@@ -468,6 +468,7 @@ void WebServ::activate()
 					continue ;
 				}
 				clt->readRequest();
+				clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
@@ -478,14 +479,35 @@ void WebServ::activate()
 					&& (curEvent->flags & EVFILT_WRITE))
 			{
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
-				if (clt->getStatus() == PROC_CGI
+				if (clt->getStatus() == SEND)
+				{	
+					clt->printAll();
+					std::string message = this->mSender.sendMessage(clt->getSocket(), clt->getMessage());
+					if (!message.empty())
+						clt->setMessage(message);
+					else
+					{
+						this->mLogger.putAccess("send response");
+						clt->closeSocket();
+						this->mLogger.putAccess("close connection");
+					}
+					continue ;
+				}
+				else if (clt->getStatus() == PROC_CGI
 						&& curEvent->ident == static_cast<uintptr_t>(clt->getSocket()))
 						clt->isTimeOver();
 				else
 					this->run(clt);
 				if (clt->checkComplete())
 				{
-					this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
+					clt->printAll();
+					std::string message = this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
+					if (!message.empty())
+					{
+						clt->setStatus(SEND);
+						clt->setMessage(message);
+						continue ;
+					}
 					this->mLogger.putAccess("send response");
 					clt->closeSocket();
 					this->mLogger.putAccess("close connection");
@@ -504,7 +526,13 @@ void WebServ::activate()
 				if (svr == -1)
 					svr = this->mPortGroup[clt->getPort()].front();
 				Response errorResponse = this->mServers[svr].getErrorPage(e.getErrorCode(), e.what());
-				this->mSender.sendMessage(clt->getSocket(), errorResponse);
+				std::string message = this->mSender.sendMessage(clt->getSocket(), errorResponse);
+				if (!message.empty())
+				{
+					clt->setStatus(SEND);
+					clt->setMessage(message);
+					continue ;
+				}
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
 				this->mLogger.putAccess("close connection");
@@ -516,7 +544,13 @@ void WebServ::activate()
 			Connection *clt = static_cast<Connection *>(curEvent->udata);
 			if (clt != NULL)
 			{
-				this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
+				std::string message = this->mSender.sendMessage(clt->getSocket(), e.getRedirLoc(), e.getServerName());
+				if (!message.empty())
+				{
+					clt->setStatus(SEND);
+					clt->setMessage(message);
+					continue ;
+				}
 				this->mLogger.putAccess("send response");
 				clt->closeSocket();
 				this->mLogger.putAccess("close connection");
