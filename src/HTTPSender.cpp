@@ -40,11 +40,23 @@ std::string	HTTPSender::makeMessage(Response response)
 	return (message);
 }
 
-void	HTTPSender::sendMessage(int sockfd, const Response &response)
+std::string HTTPSender::sendMessage(int sockfd, std::string const & message)
+{
+	int length = send(sockfd, message.c_str(), message.size(), 0);
+	if (length <= 0)
+		return message;
+	
+	if (length < static_cast<int>(message.size()))
+		return message.substr(length);
+	else
+		return "";
+}
+
+std::string	HTTPSender::sendMessage(int sockfd, const Response &response)
 {
 	std::string	message = this->makeMessage(response);
 
-	send(sockfd, message.c_str(), message.size(), 0);
+	return this->sendMessage(sockfd, message);
 }
 
 std::string	HTTPSender::makeMessage(std::string location, std::string serverName)
@@ -62,9 +74,9 @@ std::string	HTTPSender::makeMessage(std::string location, std::string serverName
 	return (message);
 }
 
-void	HTTPSender::sendMessage(int sockfd, std::string location, std::string serverName)
+std::string	HTTPSender::sendMessage(int sockfd, std::string location, std::string serverName)
 {
 	std::string	message = this->makeMessage(location, serverName);
 
-	send(sockfd, message.c_str(), message.size(), 0);
+	return this->sendMessage(sockfd, message);
 }

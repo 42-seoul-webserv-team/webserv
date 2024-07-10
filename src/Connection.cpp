@@ -361,6 +361,16 @@ Connection::~Connection(void)
 	this->mCGI.clear();
 }
 
+void Connection::setMessage(std::string const & message)
+{
+	this->mResponse.setBody(message);
+}
+
+std::string Connection::getMessage(void)
+{
+	return this->mResponse.getBody();
+}
+
 void Connection::setServerName(std::string const & svr)
 {
 	this->mResponse.setServerName(svr);

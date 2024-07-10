@@ -81,6 +81,7 @@ class Connection
 		char * getAbsolutePath(void) const;
 		int getBodySize(void);
 		int getCGISocket(void);
+		std::string getMessage(void);
 
 		void setAccept(int socket, int port);
 		void setServer(int svr);
@@ -90,6 +91,7 @@ class Connection
 		void setType(eProcessType type);
 		void setCGI(std::string const & cgi);
 		void setContentType(std::string const & type);
+		void setMessage(std::string const & message);
 
 		void readRequest(void);
 		void closeSocket(void);

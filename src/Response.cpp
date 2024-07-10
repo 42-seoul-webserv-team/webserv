@@ -90,5 +90,6 @@ void Response::printAll(void)
 	std::cout << "\t\tServer Name: " << this->mServerName << std::endl;
 	std::cout << "\t\tContent-Type: " << this->mContentType << std::endl;
 	std::cout << "\t\tContent-Length: " << this->mContentLength << std::endl;
-	std::cout << "\t\tBody: " << this->mBody << std::endl;
+	std::cout << "\t\tBody size: " << this->mBody.size() << std::endl;
+	//std::cout << "\t\tBody: " << this->mBody << std::endl;
 }
