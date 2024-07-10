@@ -47,7 +47,7 @@ int Connection::getCGIproc(void) const
 
 int Connection::getCGISocket(void)
 {
-	return this->mCGIfd[0];
+	return this->mCGIfd;
 }
 
 void Connection::fillRequest(void)
@@ -106,21 +106,27 @@ void Connection::fillRequest(std::vector<std::string> & list)
 
 void Connection::fillRequestCGI(void)
 {
+	close(this->mCGIfd);
+	this->mCGIfd = -1;
+
 	char buffer[BUFFER_SIZE];
 	std::string ret;
-	
+	int fd = open(this->mCGIfile.c_str(), O_RDONLY);
+	if (fd < 0)
+		throw ConnectionException("Not found CGI output file", BAD_GATEWAY);
+
 	while (true)
 	{
-		int length = read(this->mCGIfd[0], buffer, BUFFER_SIZE - 1);
+		int length = read(fd, buffer, BUFFER_SIZE - 1);
 		if (length <= 0)
 			break ;
 		buffer[length] = '\0';
 		ret += buffer;
 	}
+	close(fd);
 	this->mResponse.setBody(ret);
-	close(this->mCGIfd[0]);
-	this->mCGIfd[0] = -1;
 	this->mCGIproc = -1;
+	std::remove(this->mCGIfile.c_str());
 	this->mStatus = CGI_COMPLETE;
 }
 
@@ -141,19 +147,34 @@ void Connection::removeFile(void) const
 
 void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> envp)
 {
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, this->mCGIfd) < 0)
-	{
-		throw ConnectionException("Fail to create socket pair", INTERAL_SERVER_ERROR);
-	}
-	fcntl(this->mCGIfd[0], F_SETFL, O_NONBLOCK);
-	fcntl(this->mCGIfd[1], F_SETFL, O_NONBLOCK);
+	bool isPost = this->mRequest.getMethod();
 
-	int inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
+	this->mCGIfile = "ouput" + ft::toString(this->mSocket, 10);
+	this->mCGIfd = open(this->mCGIfile.c_str(), O_RDWR | O_CREAT, 0644);
+	if (this->mCGIfd < 0)
+		throw ConnectionException("Fail to create CGI file", INTERAL_SERVER_ERROR);
+	fcntl(this->mCGIfd, F_SETFL, O_NONBLOCK);
+
+	int inputFile = -1;
+	std::string inputFileName = "";
+	if (isPost)
+	{
+		inputFileName = "input" + ft::toString(this->mSocket, 10);
+		inputFile = open(inputFileName.c_str(), O_RDWR | O_CREAT, 0644);
+		if (inputFile < 0)
+			throw ConnectionException("Fail to open request file", BAD_GATEWAY);
+		std::string body = this->mRequest.getBody();
+		if (write(inputFile, body.c_str(), body.size()) < 0)
+			throw ConnectionException("Fail to send body to CGI", BAD_GATEWAY);
+		close(inputFile);
+	}
+
+	if (!isPost)
+		inputFile = open(this->mAbsolutePath.c_str(), O_RDONLY);
+	else
+		inputFile = open(inputFileName.c_str(), O_RDONLY);
 	if (inputFile < 0)
-	{
-		throw ConnectionException("File not found", NOT_FOUND);
-	}
-
+		throw ConnectionException("Fail to open request file", BAD_GATEWAY);
 	this->mCGIproc = fork();
 	if (this->mCGIproc < 0)
 	{
@@ -161,18 +182,10 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 	}
 	else if (this->mCGIproc == 0)
 	{
-		if (this->mRequest.getMethod() == POST)
-		{
-			dup2(this->mCGIfd[1], STDIN_FILENO);
-		}
-		else
-		{
-			dup2(inputFile, STDIN_FILENO);
-		}
-		dup2(this->mCGIfd[1], STDOUT_FILENO);
+		dup2(inputFile, STDIN_FILENO);
+		dup2(this->mCGIfd, STDOUT_FILENO);
 		close(inputFile);
-		close(this->mCGIfd[0]);
-		close(this->mCGIfd[1]);
+		close(this->mCGIfd);
 		this->addEnv(envp);
 		char ** CGIenvp = this->convert(envp);
 		char * argv[] = {
@@ -183,14 +196,9 @@ void Connection::processCGI(Kqueue & kque, std::map<std::string, std::string> en
 		exit(ret);
 	}
 	close(inputFile);
-	if (this->mRequest.getMethod() == POST)
-	{
-		std::string body = this->mRequest.getBody();
-		send(this->mCGIfd[0], body.c_str(), body.size(), 0);
-	}
-	close(this->mCGIfd[1]);
-	kque.addCGI(this->mCGIfd[0], this);
-	this->mCGIfd[1] = -1;
+	if (isPost)
+		std::remove(inputFileName.c_str());
+	kque.addCGI(this->mCGIfd, this);
 	this->mStatus = PROC_CGI;
 	gettimeofday(&this->mCGIstart, NULL);
 }
@@ -328,8 +336,7 @@ Connection::Connection(void)
 	this->mStatus = STARTLINE;
 	this->mUploadStatus = STARTLINE;
 	this->mProcType = NONE;
-	this->mCGIfd[0] = -1;
-	this->mCGIfd[1] = -1;
+	this->mCGIfd = -1;
 	this->mCGIproc = -1;
 }
 
@@ -341,8 +348,7 @@ Connection::Connection(int socket, int svr_port)
 	this->mStatus = STARTLINE;
 	this->mUploadStatus = STARTLINE;
 	this->mProcType = NONE;
-	this->mCGIfd[0] = -1;
-	this->mCGIfd[1] = -1;
+	this->mCGIfd = -1;
 	this->mCGIproc = -1;
 	this->renewTime();
 }
@@ -488,15 +494,10 @@ void Connection::closeSocket(void)
 		kill(this->mCGIproc, SIGKILL);
 		this->mCGIproc = -1;
 	}
-	if (this->mCGIfd[0] != -1)
+	if (this->mCGIfd != -1)
 	{
-		close(this->mCGIfd[0]);
-		this->mCGIfd[0] = -1;
-	}
-	if (this->mCGIfd[1] != -1)
-	{
-		close(this->mCGIfd[1]);
-		this->mCGIfd[1] = -1;
+		close(this->mCGIfd);
+		this->mCGIfd = -1;
 	}
 	this->mServerPort = -1;
 	this->mServer = -1;

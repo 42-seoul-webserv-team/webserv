@@ -34,7 +34,8 @@ class Connection
 		std::string  mAbsolutePath;
 		std::deque<char> mRemain;
 		std::string mCGI;
-		int mCGIfd[2];
+		std::string mCGIfile;
+		int mCGIfd;
 		int mCGIproc;
 		
 		std::vector<std::vector <char> > mUpload;
