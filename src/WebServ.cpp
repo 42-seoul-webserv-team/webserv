@@ -468,7 +468,6 @@ void WebServ::activate()
 					continue ;
 				}
 				clt->readRequest();
-				clt->printAll();
 				int svr = this->findServer(*clt);
 				if (svr != -1)
 					this->parseRequest(clt, &this->mServers[svr]);
@@ -481,7 +480,6 @@ void WebServ::activate()
 				Connection *clt = static_cast<Connection *>(curEvent->udata);
 				if (clt->getStatus() == SEND)
 				{	
-					clt->printAll();
 					std::string message = this->mSender.sendMessage(clt->getSocket(), clt->getMessage());
 					if (!message.empty())
 						clt->setMessage(message);
@@ -500,7 +498,6 @@ void WebServ::activate()
 					this->run(clt);
 				if (clt->checkComplete())
 				{
-					clt->printAll();
 					std::string message = this->mSender.sendMessage(clt->getSocket(), clt->getResponse());
 					if (!message.empty())
 					{
