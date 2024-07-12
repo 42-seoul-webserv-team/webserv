@@ -8,7 +8,7 @@
 # define LISTEN_MAX 10
 
 // Kqueue
-# define EVENT_MAX 20
+# define EVENT_MAX 30
 
 // Server
 # define DEFAULT_SERVERNAME "WebServ"
