@@ -416,6 +416,30 @@ void Connection::setServer(int  svr)
 	this->mServer = svr;
 }
 
+bool Connection::checkUploadSize(int size)
+{
+	int body = 0;
+	for (size_t file = 0; file < this->mUpload.size(); file++)
+	{
+		body += mUploadStart.size();
+		if (body > size)
+			return true;
+		for (size_t info = 0; info < this->mUploadInfo[file].size(); info++)
+		{
+			body += this->mUploadInfo[file][info].size();
+			if (body > size)
+				return true;
+		}
+		body += this->mUpload[file].size();
+		if (body > size)
+			return true;
+	}
+	body += mUploadEnd.size();
+	if (body > size)
+		return true;
+	return false;
+}
+
 void Connection::readRequest(void)
 {
 	if (this->mRequest.getStatus() == COMPLETE)

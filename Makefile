@@ -2,7 +2,7 @@
 CC = c++
 CFLAGS = -Wall -Wextra -Werror -std=c++98
 INC = ./include
-NAME = webServ
+NAME = webserv
 BUILD = ./src
 TARGET = Location.cpp \
 	   Server.cpp \

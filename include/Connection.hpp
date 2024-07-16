@@ -101,6 +101,7 @@ class Connection
 		bool checkComplete(void);
 		bool checkOvertime(void);
 		bool checkStatus(void);
+		bool checkUploadSize(int size);
 
 		void fillRequest(void);
 		void fillRequest(std::vector<std::string> & list);
